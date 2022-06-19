@@ -234,13 +234,13 @@ struct Cpu {
         memory.write_half(read_half_pc(), sp);
         break;
       case 0x09: {  // ADD HL, BC
-        auto res = hl() + bc();
-        set_f(null, 0, (res ^  hl() ^ bc()) & 0x1000, res > 0x10000);
-        set_hl(res);
+        auto value = hl() + bc();
+        set_f(null, 0, (value ^  hl() ^ bc()) & 0x1000, value > 0x10000);
+        set_hl(value);
         break;
       }
       case 0x0A:  // LD A, (BC)
-        a = memory.read_half(bc());
+        a = memory.read_byte(bc());
         break;
       case 0x0B:  // DEC BC
         set_bc(bc() - 1);
@@ -270,7 +270,7 @@ struct Cpu {
         memory.write_byte(de(), a);
         break;
       case 0x13:  // INC DE
-        set_bc(de() + 1);
+        set_de(de() + 1);
         break;
       case 0x14:  // INC D
         d = (d + 1) & 0xFF;
@@ -292,16 +292,16 @@ struct Cpu {
         pc = read_byte_pc() + pc;
         break;
       case 0x19: {  // ADD HL, DE
-        auto res = hl() + de();
-        set_f(null, 0, (res ^  hl() ^ de()) & 0x1000, res > 0x10000);
-        set_de(res);
+        auto value = hl() + de();
+        set_f(null, 0, (value ^  hl() ^ de()) & 0x1000, value > 0x10000);
+        set_de(value);
         break;
       }
       case 0x1A:  // LD A, (DE)
-        a = memory.read_half(de());
+        a = memory.read_byte(de());
         break;
       case 0x1B:  // DEC DE
-        set_bc(de() - 1);
+        set_de(de() - 1);
         break;
       case 0x1C:  // INC E
         e = (e + 1) & 0xFF;
@@ -318,6 +318,141 @@ struct Cpu {
         a = a | (fc() << 8);
         set_f(0, 0, 0, a & 0x1);
         a = a >> 1;
+        break;
+      case 0x20:  // JR NZ, imm
+        if (!fz()) {
+          pc = read_byte_pc() + pc;
+        } else {
+          pc = pc + 1;
+        }
+        break;
+      case 0x21:  // LD HL, imm
+        set_hl(read_half_pc());
+        break;
+      case 0x22:  // LD (HL+), A
+        memory.write_byte(hl(), a);
+        set_hl(hl() + 1);
+        break;
+      case 0x23:  // INC HL
+        set_hl(hl() + 1);
+        break;
+      case 0x24:  // INC H
+        h = (h + 1) & 0xFF;
+        set_f(h == 0, 0, h == 0x10, null);
+        break;
+      case 0x25:  // DEC H
+        h = (h - 1) & 0xFF;
+        set_f(h == 0, 1, h == 0x0F, null);
+        break;
+      case 0x26:  // LD H, imm
+        h = read_byte_pc();
+        break;
+      case 0x27:  // DAA
+        // Todo: implement https://ehaskins.com/2018-01-30%20Z80%20DAA/
+        break;
+      case 0x28:  // JR Z, imm
+        if (fz()) {
+          pc = read_byte_pc() + pc;
+        } else {
+          pc = pc + 1;
+        }
+        break;
+      case 0x29: {  // ADD HL, HL
+        auto value = hl() + hl();
+        set_f(null, 0, value & 0x1000, value > 0x10000);
+        set_hl(value);
+        break;
+      }
+      case 0x2A:  // LD A, (HL+)
+        a = memory.read_byte(hl());
+        set_hl(hl() + 1);
+        break;
+      case 0x2B:  // DEC HL
+        set_hl(hl() - 1);
+        break;
+      case 0x2C:  // INC L
+        l = (l + 1) & 0xFF;
+        set_f(l == 0, 0, l == 0x10, null);
+        break;
+      case 0x2D:  // DEC L
+        l = (l - 1) & 0xFF;
+        set_f(l == 0, 1, l == 0x0F, null);
+        break;
+      case 0x2E:  // LD L, imm
+        l = read_byte_pc();
+        break;
+      case 0x2F:  // CPL
+        a = ~a;
+        set_f(null, 1, 1, null);
+        break;
+      case 0x30:  // JR NC, imm
+        if (!fc()) {
+          pc = read_byte_pc() + pc;
+        } else {
+          pc = pc + 1;
+        }
+        break;
+      case 0x31:  // LD SP, imm
+        sp = read_half_pc();
+        break;
+      case 0x32:  // LD (HL-), A
+        memory.write_byte(hl(), a);
+        set_hl(hl() - 1);
+        break;
+      case 0x33:  // INC SP
+        sp = (sp + 1) & 0xFFFF;
+        break;
+      case 0x34: {  // INC (HL)
+        auto value = (memory.read_byte(hl()) + 1) & 0xFF;
+        set_f(value == 0, 0, value == 0x10, null);
+        memory.write_byte(hl(), value);
+        break;
+      }
+      case 0x35: {  // DEC (HL)
+        auto value = (memory.read_byte(hl()) + 1) & 0xFF;
+        set_f(value == 0, 1, value == 0x0F, null);
+        memory.write_byte(hl(), value);
+        break;
+      }
+      case 0x36:  // LD (HL), imm
+        memory.write_byte(hl(), read_byte_pc());
+        break;
+      case 0x37:  // SCF
+        set_f(null, 0, 0, 1);
+        break;
+      case 0x38:  // JR C, imm
+        if (fc()) {
+          pc = read_byte_pc() + pc;
+        } else {
+          pc = pc + 1;
+        }
+        break;
+      case 0x39: {  // ADD HL, SP
+        auto value = hl() + sp;
+        set_f(null, 0, (value ^ hl() ^ sp) & 0x1000, value > 0x10000);
+        set_hl(value);
+        break;
+      }
+      case 0x3A:  // LD A, (HL-)
+        a = memory.read_byte(hl());
+        set_hl(hl() - 1);
+        break;
+      case 0x3B:  // DEC SP
+        sp = (sp - 1) & 0xFF;
+        break;
+      case 0x3C:  // INC A
+        a = (a + 1) & 0xFF;
+        set_f(a == 0, 0, a == 0x10, null);
+        break;
+      case 0x3D:  // DEC A
+        a = (a - 1) & 0xFF;
+        set_f(a == 0, 1, a == 0x0F, null);
+        break;
+      case 0x3E:  // LD A, imm
+        a = read_byte_pc();
+        break;
+      case 0x3F:  // CCF
+        set_f(null, 0, 0, !fc());
         break;
     }
   }
