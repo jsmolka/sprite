@@ -86,8 +86,7 @@ struct Memory {
   }
 
   void write_half(dzint addr, dzint half) {
-    addr = addr & ~0x1;
-    write_byte(addr + 0, (half >> 0) & 0xFF);
+    write_byte(addr, half & 0xFF);
     write_byte(addr + 1, (half >> 8) & 0xFF);
   }
 
@@ -191,13 +190,13 @@ struct Cpu {
 
   auto read_byte_pc() -> dzint {
     auto value = memory.read_byte(pc);
-    pc = pc + 1;
+    pc = (pc + 1) & 0xFFFF;
     return value;
   }
 
   auto read_half_pc() -> dzint {
     auto value = memory.read_half(pc);
-    pc = pc + 2;
+    pc = (pc + 2) & 0xFFFF;
     return value;
   }
 
@@ -213,12 +212,53 @@ struct Cpu {
     return value;
   }
 
+  void jp(dzbool condition) {
+    if (condition) {
+      pc = read_half_pc();
+    } else {
+      pc = (pc + 2) & 0xFFFF;
+    }
+  }
+
   void jr(dzbool condition) {
     if (condition) {
       pc = read_byte_pc() + pc;
     } else {
-      pc = pc + 1;
+      pc = (pc + 1) & 0xFFFF;
     }
+  }
+
+  void ret(dzbool condition) {
+    if (condition) {
+      pc = memory.read_half(sp);
+      sp = (sp + 2) & 0xFFFF;
+    }
+  }
+
+  void push(dzint half) {
+    sp = (sp - 2) & 0xFFFF;
+    memory.write_half(sp, half);
+  }
+
+  auto pop() -> dzint {
+    auto value = memory.read_half(sp);
+    sp = (sp + 2) & 0xFFFF;
+    return value;
+  }
+
+  void call(dzbool condition) {
+    if (condition) {
+      auto addr = read_half_pc();
+      push(pc);
+      pc = addr;
+    } else {
+      pc = (pc + 2) & 0xFFFF;
+    }
+  }
+
+  void rst(dzint addr) {
+    push(pc);
+    pc = addr;
   }
 
   void add(dzint b) {
@@ -854,6 +894,54 @@ struct Cpu {
         break;
       case 0xBF:  // CP A
         cp(a);
+        break;
+      case 0xC0:  // RET NZ
+        ret(!fz());
+        break;
+      case 0xC1:  // POP BC
+        set_bc(pop());
+        break;
+      case 0xC2:  // JP NZ, imm
+        jp(!fz());
+        break;
+      case 0xC3:  // JP imm
+        jp(true);
+        break;
+      case 0xC4:  // CALL NZ, imm
+        call(!fz());
+        break;
+      case 0xC5:  // PUSH BC
+        push(bc());
+        break;
+      case 0xC6:  // ADD A, imm
+        add(read_byte_pc());
+        break;
+      case 0xC7:  // RST 00
+        rst(0x00);
+        break;
+      case 0xC8:  // RET Z
+        ret(fz());
+        break;
+      case 0xC9:  // RET
+        ret(true);
+        break;
+      case 0xCA:  // JP Z, imm
+        jp(fz());
+        break;
+      case 0xCB:  // PREFIX CB
+        // Todo: implement
+        break;
+      case 0xCC:  // CALL Z, imm
+        call(fz());
+        break;
+      case 0xCD:  // CALL imm
+        call(true);
+        break;
+      case 0xCE:  // ADC A, imm
+        adc(read_byte_pc());
+        break;
+      case 0xCF:  // RST 08
+        rst(0x08);
         break;
     }
   }
