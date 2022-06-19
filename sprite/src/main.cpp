@@ -201,6 +201,50 @@ struct Cpu {
     return value;
   }
 
+  void add(dzint b) {
+    auto value = a + b;
+    set_f((value & 0xFF) == 0, 0, (a ^ b ^ value) & 0x10, value & 0xFF00);
+    a = value & 0xFF;
+  }
+
+  void adc(dzint b) {
+    auto value = a + b + fc();
+    set_f((value & 0xFF) == 0, 0, (a ^ b ^ value) & 0x10, value & 0xFF00);
+    a = value & 0xFF;
+  }
+
+  void sub(dzint b) {
+    auto value = a - b;
+    set_f((value & 0xFF) == 0, 1, (a ^ b ^ value) & 0x10, value & 0xFF00);
+    a = value & 0xFF;
+  }
+
+  void sbc(dzint b) {
+    auto value = a - b - fc();
+    set_f((value & 0xFF) == 0, 1, (a ^ b ^ value) & 0x10, value & 0xFF00);
+    a = value & 0xFF;
+  }
+
+  void and_(dzint b) {
+    a = a & b;
+    set_f(a == 0, 0, 1, 0);
+  }
+
+  void xor_(dzint b) {
+    a = a ^ b;
+    set_f(a == 0, 0, 0, 0);
+  }
+
+  void or_(dzint b) {
+    a = a | b;
+    set_f(a == 0, 0, 0, 0);
+  }
+
+  void cp(dzint b) {
+    auto value = a - b;
+    set_f((value & 0xFF) == 0, 1, (a ^ b ^ value) & 0x10, value & 0xFF00);
+  }
+
   void step() {
     switch (read_byte_pc()) {
       case 0x00:  // NOP
@@ -637,6 +681,198 @@ struct Cpu {
         a = memory.read_byte(hl());
         break;
       case 0x7F:  // LD A, A
+        break;
+      case 0x80:  // ADD B
+        add(b);
+        break;
+      case 0x81:  // ADD C
+        add(c);
+        break;
+      case 0x82:  // ADD D
+        add(d);
+        break;
+      case 0x83:  // ADD E
+        add(e);
+        break;
+      case 0x84:  // ADD H
+        add(h);
+        break;
+      case 0x85:  // ADD L
+        add(l);
+        break;
+      case 0x86:  // ADD (HL)
+        add(memory.read_byte(hl()));
+        break;
+      case 0x87:  // ADD A
+        add(a);
+        break;
+      case 0x88:  // ADC B
+        adc(b);
+        break;
+      case 0x89:  // ADC C
+        adc(c);
+        break;
+      case 0x8A:  // ADC D
+        adc(d);
+        break;
+      case 0x8B:  // ADC E
+        adc(e);
+        break;
+      case 0x8C:  // ADC H
+        adc(h);
+        break;
+      case 0x8D:  // ADC L
+        adc(l);
+        break;
+      case 0x8E:  // ADC (HL)
+        adc(memory.read_byte(hl()));
+        break;
+      case 0x8F:  // ADC A
+        adc(a);
+        break;
+      case 0x90:  // SUB B
+        sub(b);
+        break;
+      case 0x91:  // SUB C
+        sub(c);
+        break;
+      case 0x92:  // SUB D
+        sub(d);
+        break;
+      case 0x93:  // SUB E
+        sub(e);
+        break;
+      case 0x94:  // SUB H
+        sub(h);
+        break;
+      case 0x95:  // SUB L
+        sub(l);
+        break;
+      case 0x96:  // SUB (HL)
+        sub(memory.read_byte(hl()));
+        break;
+      case 0x97:  // SUB A
+        sub(a);
+        break;
+      case 0x98:  // SBC B
+        sbc(b);
+        break;
+      case 0x99:  // SBC C
+        sbc(c);
+        break;
+      case 0x9A:  // SBC D
+        sbc(d);
+        break;
+      case 0x9B:  // SBC E
+        sbc(e);
+        break;
+      case 0x9C:  // SBC H
+        sbc(h);
+        break;
+      case 0x9D:  // SBC L
+        sbc(l);
+        break;
+      case 0x9E:  // SBC (HL)
+        sbc(memory.read_byte(hl()));
+        break;
+      case 0x9F:  // SBC A
+        sbc(a);
+        break;
+      case 0xA0:  // AND B
+        and_(b);
+        break;
+      case 0xA1:  // AND C
+        and_(c);
+        break;
+      case 0xA2:  // AND D
+        and_(d);
+        break;
+      case 0xA3:  // AND E
+        and_(e);
+        break;
+      case 0xA4:  // AND H
+        and_(h);
+        break;
+      case 0xA5:  // AND L
+        and_(l);
+        break;
+      case 0xA6:  // AND (HL)
+        and_(memory.read_byte(hl()));
+        break;
+      case 0xA7:  // AND A
+        and_(a);
+        break;
+      case 0xA8:  // XOR B
+        xor_(b);
+        break;
+      case 0xA9:  // XOR C
+        xor_(c);
+        break;
+      case 0xAA:  // XOR D
+        xor_(d);
+        break;
+      case 0xAB:  // XOR E
+        xor_(e);
+        break;
+      case 0xAC:  // XOR H
+        xor_(h);
+        break;
+      case 0xAD:  // XOR L
+        xor_(l);
+        break;
+      case 0xAE:  // XOR (HL)
+        xor_(memory.read_byte(hl()));
+        break;
+      case 0xAF:  // XOR A
+        xor_(a);
+        break;
+      case 0xB0:  // OR B
+        or_(b);
+        break;
+      case 0xB1:  // OR C
+        or_(c);
+        break;
+      case 0xB2:  // OR D
+        or_(d);
+        break;
+      case 0xB3:  // OR E
+        or_(e);
+        break;
+      case 0xB4:  // OR H
+        or_(h);
+        break;
+      case 0xB5:  // OR L
+        or_(l);
+        break;
+      case 0xB6:  // OR (HL)
+        or_(memory.read_byte(hl()));
+        break;
+      case 0xB7:  // OR A
+        or_(a);
+        break;
+      case 0xB8:  // CP B
+        cp(b);
+        break;
+      case 0xB9:  // CP C
+        cp(c);
+        break;
+      case 0xBA:  // CP D
+        cp(d);
+        break;
+      case 0xBB:  // CP E
+        cp(e);
+        break;
+      case 0xBC:  // CP H
+        cp(h);
+        break;
+      case 0xBD:  // CP L
+        cp(l);
+        break;
+      case 0xBE:  // CP (HL)
+        cp(memory.read_byte(hl()));
+        break;
+      case 0xBF:  // CP A
+        cp(a);
         break;
     }
   }
