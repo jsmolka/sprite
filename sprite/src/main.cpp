@@ -213,10 +213,24 @@ struct Cpu {
     return value;
   }
 
+  void jr(dzbool condition) {
+    if (condition) {
+      pc = read_byte_pc() + pc;
+    } else {
+      pc = pc + 1;
+    }
+  }
+
   void add(dzint b) {
     auto value = a + b;
     set_f((value & 0xFF) == 0, 0, (a ^ b ^ value) & 0x10, value & 0xFF00);
     a = value & 0xFF;
+  }
+
+  void add_half(dzint b) {
+    auto value = hl() + b;
+    set_f(null, 0, (hl() ^ b ^ value) & 0x1000, value & 0xFFFF0000);
+    set_hl(value);
   }
 
   void adc(dzint b) {
@@ -263,7 +277,8 @@ struct Cpu {
         noop;
         break;
       case 0x01:  // LD BC, imm
-        set_bc(read_half_pc());
+        c = read_byte_pc();
+        b = read_byte_pc();
         break;
       case 0x02:  // LD (BC), A
         memory.write_byte(bc(), a);
@@ -287,12 +302,9 @@ struct Cpu {
       case 0x08:  // LD (imm), SP
         memory.write_half(read_half_pc(), sp);
         break;
-      case 0x09: {  // ADD HL, BC
-        auto value = hl() + bc();
-        set_f(null, 0, (value ^  hl() ^ bc()) & 0x1000, value > 0x10000);
-        set_hl(value);
+      case 0x09:  // ADD HL, BC
+        add_half(bc());
         break;
-      }
       case 0x0A:  // LD A, (BC)
         a = memory.read_byte(bc());
         break;
@@ -315,7 +327,8 @@ struct Cpu {
       case 0x10:  // STOP
         break;
       case 0x11:  // LD DE, imm
-        set_de(read_half_pc());
+        e = read_byte_pc();
+        d = read_byte_pc();
         break;
       case 0x12:  // LD (DE), A
         memory.write_byte(de(), a);
@@ -338,14 +351,11 @@ struct Cpu {
         a = a & 0xFF;
         break;
       case 0x18:  // JR imm
-        pc = read_byte_pc() + pc;
+        jr(true);
         break;
-      case 0x19: {  // ADD HL, DE
-        auto value = hl() + de();
-        set_f(null, 0, (value ^  hl() ^ de()) & 0x1000, value > 0x10000);
-        set_de(value);
+      case 0x19:  // ADD HL, DE
+        add_half(de());
         break;
-      }
       case 0x1A:  // LD A, (DE)
         a = memory.read_byte(de());
         break;
@@ -367,14 +377,11 @@ struct Cpu {
         a = a >> 1;
         break;
       case 0x20:  // JR NZ, imm
-        if (!fz()) {
-          pc = read_byte_pc() + pc;
-        } else {
-          pc = pc + 1;
-        }
+        jr(!fz());
         break;
       case 0x21:  // LD HL, imm
-        set_hl(read_half_pc());
+        l = read_byte_pc();
+        h = read_byte_pc();
         break;
       case 0x22:  // LD (HL+), A
         memory.write_byte(hl(), a);
@@ -396,18 +403,11 @@ struct Cpu {
         // Todo: implement https://ehaskins.com/2018-01-30%20Z80%20DAA/
         break;
       case 0x28:  // JR Z, imm
-        if (fz()) {
-          pc = read_byte_pc() + pc;
-        } else {
-          pc = pc + 1;
-        }
+        jr(fz());
         break;
-      case 0x29: {  // ADD HL, HL
-        auto value = hl() + hl();
-        set_f(null, 0, value & 0x1000, value > 0x10000);
-        set_hl(value);
+      case 0x29:  // ADD HL, HL
+        add_half(hl());
         break;
-      }
       case 0x2A:  // LD A, (HL+)
         a = memory.read_byte(hl());
         set_hl(hl() + 1);
@@ -429,11 +429,7 @@ struct Cpu {
         set_f(null, 1, 1, null);
         break;
       case 0x30:  // JR NC, imm
-        if (!fc()) {
-          pc = read_byte_pc() + pc;
-        } else {
-          pc = pc + 1;
-        }
+        jr(!fc());
         break;
       case 0x31:  // LD SP, imm
         sp = read_half_pc();
@@ -458,18 +454,11 @@ struct Cpu {
         set_f(null, 0, 0, 1);
         break;
       case 0x38:  // JR C, imm
-        if (fc()) {
-          pc = read_byte_pc() + pc;
-        } else {
-          pc = pc + 1;
-        }
+        jr(fc());
         break;
-      case 0x39: {  // ADD HL, SP
-        auto value = hl() + sp;
-        set_f(null, 0, (value ^ hl() ^ sp) & 0x1000, value > 0x10000);
-        set_hl(value);
+      case 0x39:  // ADD HL, SP
+        add_half(sp);
         break;
-      }
       case 0x3A:  // LD A, (HL-)
         a = memory.read_byte(hl());
         set_hl(hl() - 1);
