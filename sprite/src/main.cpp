@@ -201,6 +201,18 @@ struct Cpu {
     return value;
   }
 
+  auto inc(dzint value) -> dzint {
+    value = (value + 1) & 0xFF;
+    set_f(value == 0, 0, value == 0x10, null);
+    return value;
+  }
+
+  auto dec(dzint value) -> dzint {
+    value = (value - 1) & 0xFF;
+    set_f(value == 0, 1, value == 0x0F, null);
+    return value;
+  }
+
   void add(dzint b) {
     auto value = a + b;
     set_f((value & 0xFF) == 0, 0, (a ^ b ^ value) & 0x10, value & 0xFF00);
@@ -260,12 +272,10 @@ struct Cpu {
         set_bc(bc() + 1);
         break;
       case 0x04:  // INC B
-        b = (b + 1) & 0xFF;
-        set_f(b == 0, 0, b == 0x10, null);
+        b = inc(b);
         break;
       case 0x05:  // DEC B
-        b = (b - 1) & 0xFF;
-        set_f(b == 0, 1, b == 0x0F, null);
+        b = dec(b);
         break;
       case 0x06:  // LD B, imm
         b = read_byte_pc();
@@ -290,12 +300,10 @@ struct Cpu {
         set_bc(bc() - 1);
         break;
       case 0x0C:  // INC C
-        c = (c + 1) & 0xFF;
-        set_f(c == 0, 0, c == 0x10, null);
+        c = inc(c);
         break;
       case 0x0D:  // DEC C
-        c = (c - 1) & 0xFF;
-        set_f(c == 0, 1, c == 0x0F, null);
+        c = dec(c);
         break;
       case 0x0E:  // LD C, imm
         c = read_byte_pc();
@@ -316,12 +324,10 @@ struct Cpu {
         set_de(de() + 1);
         break;
       case 0x14:  // INC D
-        d = (d + 1) & 0xFF;
-        set_f(d == 0, 0, d == 0x10, null);
+        d = inc(d);
         break;
       case 0x15:  // DEC D
-        d = (d - 1) & 0xFF;
-        set_f(d == 0, 1, d == 0x0F, null);
+        d = dec(d);
         break;
       case 0x16:  // LD D, imm
         d = read_byte_pc();
@@ -347,12 +353,10 @@ struct Cpu {
         set_de(de() - 1);
         break;
       case 0x1C:  // INC E
-        e = (e + 1) & 0xFF;
-        set_f(e == 0, 0, e == 0x10, null);
+        e = inc(e);
         break;
       case 0x1D:  // DEC E
-        e = (e - 1) & 0xFF;
-        set_f(e == 0, 1, e == 0x0F, null);
+        e = dec(e);
         break;
       case 0x1E:  // LD E, imm
         e = read_byte_pc();
@@ -380,12 +384,10 @@ struct Cpu {
         set_hl(hl() + 1);
         break;
       case 0x24:  // INC H
-        h = (h + 1) & 0xFF;
-        set_f(h == 0, 0, h == 0x10, null);
+        h = inc(h);
         break;
       case 0x25:  // DEC H
-        h = (h - 1) & 0xFF;
-        set_f(h == 0, 1, h == 0x0F, null);
+        h = dec(h);
         break;
       case 0x26:  // LD H, imm
         h = read_byte_pc();
@@ -414,12 +416,10 @@ struct Cpu {
         set_hl(hl() - 1);
         break;
       case 0x2C:  // INC L
-        l = (l + 1) & 0xFF;
-        set_f(l == 0, 0, l == 0x10, null);
+        l = inc(l);
         break;
       case 0x2D:  // DEC L
-        l = (l - 1) & 0xFF;
-        set_f(l == 0, 1, l == 0x0F, null);
+        l = dec(l);
         break;
       case 0x2E:  // LD L, imm
         l = read_byte_pc();
@@ -445,18 +445,12 @@ struct Cpu {
       case 0x33:  // INC SP
         sp = (sp + 1) & 0xFFFF;
         break;
-      case 0x34: {  // INC (HL)
-        auto value = (memory.read_byte(hl()) + 1) & 0xFF;
-        set_f(value == 0, 0, value == 0x10, null);
-        memory.write_byte(hl(), value);
+      case 0x34:  // INC (HL)
+        memory.write_byte(hl(), inc(memory.read_byte(hl())));
         break;
-      }
-      case 0x35: {  // DEC (HL)
-        auto value = (memory.read_byte(hl()) + 1) & 0xFF;
-        set_f(value == 0, 1, value == 0x0F, null);
-        memory.write_byte(hl(), value);
+      case 0x35:  // DEC (HL)
+        memory.write_byte(hl(), dec(memory.read_byte(hl())));
         break;
-      }
       case 0x36:  // LD (HL), imm
         memory.write_byte(hl(), read_byte_pc());
         break;
@@ -481,15 +475,13 @@ struct Cpu {
         set_hl(hl() - 1);
         break;
       case 0x3B:  // DEC SP
-        sp = (sp - 1) & 0xFF;
+        sp = (sp - 1) & 0xFFFF;
         break;
       case 0x3C:  // INC A
-        a = (a + 1) & 0xFF;
-        set_f(a == 0, 0, a == 0x10, null);
+        a = inc(a);
         break;
       case 0x3D:  // DEC A
-        a = (a - 1) & 0xFF;
-        set_f(a == 0, 1, a == 0x0F, null);
+        a = dec(a);
         break;
       case 0x3E:  // LD A, imm
         a = read_byte_pc();
