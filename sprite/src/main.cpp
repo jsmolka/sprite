@@ -261,7 +261,6 @@ struct Cpu {
         a = ((a >> 1) | (a << 7)) & 0xFF;
         break;
       case 0x10:  // STOP
-        noop;  // Todo: implement
         break;
       case 0x11:  // LD DE, imm
         set_de(read_half_pc());
@@ -453,6 +452,191 @@ struct Cpu {
         break;
       case 0x3F:  // CCF
         set_f(null, 0, 0, !fc());
+        break;
+      case 0x40:  // LD B, B
+        break;
+      case 0x41:  // LD B, C
+        b = c;
+        break;
+      case 0x42:  // LD B, D
+        b = d;
+        break;
+      case 0x43:  // LD B, E
+        b = e;
+        break;
+      case 0x44:  // LD B, H
+        b = h;
+        break;
+      case 0x45:  // LD B, L
+        b = l;
+        break;
+      case 0x46:  // LD B, (HL)
+        b = memory.read_byte(hl());
+        break;
+      case 0x47:  // LD B, A
+        b = a;
+        break;
+      case 0x48:  // LD C, B
+        c = b;
+        break;
+      case 0x49:  // LD C, C
+        break;
+      case 0x4A:  // LD C, D
+        c = d;
+        break;
+      case 0x4B:  // LD C, E
+        c = e;
+        break;
+      case 0x4C:  // LD C, H
+        c = h;
+        break;
+      case 0x4D:  // LD C, L
+        c = l;
+        break;
+      case 0x4E:  // LD C, (HL)
+        c = memory.read_byte(hl());
+        break;
+      case 0x4F:  // LD C, A
+        c = a;
+        break;
+      case 0x50:  // LD D, B
+        d = b;
+        break;
+      case 0x51:  // LD D, C
+        d = c;
+        break;
+      case 0x52:  // LD D, D
+        break;
+      case 0x53:  // LD D, E
+        d = e;
+        break;
+      case 0x54:  // LD D, H
+        d = h;
+        break;
+      case 0x55:  // LD D, L
+        d = l;
+        break;
+      case 0x56:  // LD D, (HL)
+        d = memory.read_byte(hl());
+        break;
+      case 0x57:  // LD D, A
+        d = a;
+        break;
+      case 0x58:  // LD E, B
+        e = b;
+        break;
+      case 0x59:  // LD E, C
+        e = c;
+        break;
+      case 0x5A:  // LD E, D
+        e = d;
+        break;
+      case 0x5B:  // LD E, E
+        break;
+      case 0x5C:  // LD E, H
+        e = h;
+        break;
+      case 0x5D:  // LD E, L
+        e = l;
+        break;
+      case 0x5E:  // LD E, (HL)
+        e = memory.read_byte(hl());
+        break;
+      case 0x5F:  // LD E, A
+        e = a;
+        break;
+      case 0x60:  // LD H, B
+        h = b;
+        break;
+      case 0x61:  // LD H, C
+        h = c;
+        break;
+      case 0x62:  // LD H, D
+        h = d;
+        break;
+      case 0x63:  // LD H, E
+        h = e;
+        break;
+      case 0x64:  // LD H, H
+        break;
+      case 0x65:  // LD H, L
+        h = l;
+        break;
+      case 0x66:  // LD H, (HL)
+        h = memory.read_byte(hl());
+        break;
+      case 0x67:  // LD H, A
+        h = a;
+        break;
+      case 0x68:  // LD L, B
+        l = b;
+        break;
+      case 0x69:  // LD L, C
+        l = c;
+        break;
+      case 0x6A:  // LD L, D
+        l = d;
+        break;
+      case 0x6B:  // LD L, E
+        l = e;
+        break;
+      case 0x6C:  // LD L, H
+        l = h;
+        break;
+      case 0x6D:  // LD L, L
+        break;
+      case 0x6E:  // LD L, (HL)
+        l = memory.read_byte(hl());
+        break;
+      case 0x6F:  // LD L, A
+        l = a;
+        break;
+      case 0x70:  // LD (HL), B
+        memory.write_byte(hl(), b);
+        break;
+      case 0x71:  // LD (HL), C
+        memory.write_byte(hl(), c);
+        break;
+      case 0x72:  // LD (HL), D
+        memory.write_byte(hl(), d);
+        break;
+      case 0x73:  // LD (HL), E
+        memory.write_byte(hl(), e);
+        break;
+      case 0x74:  // LD (HL), H
+        memory.write_byte(hl(), h);
+        break;
+      case 0x75:  // LD (HL), L
+        memory.write_byte(hl(), l);
+        break;
+      case 0x76:  // HALT
+        // Todo: implement
+        break;
+      case 0x77:  // LD (HL), A
+        memory.write_byte(hl(), a);
+        break;
+      case 0x78:  // LD A, B
+        a = b;
+        break;
+      case 0x79:  // LD A, C
+        a = c;
+        break;
+      case 0x7A:  // LD A, D
+        a = d;
+        break;
+      case 0x7B:  // LD A, E
+        a = e;
+        break;
+      case 0x7C:  // LD A, H
+        a = h;
+        break;
+      case 0x7D:  // LD A, L
+        a = l;
+        break;
+      case 0x7E:  // LD A, (HL)
+        a = memory.read_byte(hl());
+        break;
+      case 0x7F:  // LD A, A
         break;
     }
   }
