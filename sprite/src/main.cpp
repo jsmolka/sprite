@@ -132,7 +132,7 @@ struct Cpu {
   }
 
   auto de() const -> dzint {
-    return d | (e << 8);
+    return e | (d << 8);
   }
 
   void set_de(dzint value) {
