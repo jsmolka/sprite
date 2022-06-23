@@ -217,11 +217,11 @@ struct Cpu {
   }
 
   void jr(dzbool condition) {
+    dzint offset = 1;
     if (condition) {
-      pc = read_byte_pc() + pc;
-    } else {
-      pc = (pc + 1) & 0xFFFF;
+      offset = (read_byte_pc() << 56) >> 56;
     }
+    pc = (pc + offset) & 0xFFFF;
   }
 
   void push(dzint half) {
@@ -259,13 +259,13 @@ struct Cpu {
 
   auto inc(dzint value) -> dzint {
     value = (value + 1) & 0xFF;
-    set_f(value == 0, 0, value == 0x10, null);
+    set_f(value == 0, 0, (value & 0x0F) == 0x00, null);
     return value;
   }
 
   auto dec(dzint value) -> dzint {
     value = (value - 1) & 0xFF;
-    set_f(value == 0, 1, value == 0x0F, null);
+    set_f(value == 0, 1, (value & 0x0F) == 0x0F, null);
     return value;
   }
 
@@ -275,10 +275,10 @@ struct Cpu {
     a = value & 0xFF;
   }
 
-  void add_half(dzint b) {
-    auto value = hl() + b;
-    set_f(null, 0, (hl() ^ b ^ value) & 0x1000, value & 0xFFFF0000);
-    set_hl(value);
+  auto add_half(dzint a, dzint b) -> dzint {
+    auto value = a + b;
+    set_f(null, 0, (a ^ b ^ value) & 0x1000, value & 0xFFFF0000);
+    return value;
   }
 
   void adc(dzint b) {
@@ -324,7 +324,7 @@ struct Cpu {
       case 0x00:  // NOP
         noop;
         break;
-      case 0x01:  // LD BC, imm
+      case 0x01:  // LD BC, u16
         c = read_byte_pc();
         b = read_byte_pc();
         break;
@@ -340,18 +340,18 @@ struct Cpu {
       case 0x05:  // DEC B
         b = dec(b);
         break;
-      case 0x06:  // LD B, imm
+      case 0x06:  // LD B, u8
         b = read_byte_pc();
         break;
       case 0x07:  // RCLA
         a = ((a << 1) | (a >> 7)) & 0xFF;
         set_f(0, 0, 0, a & 0x1);
         break;
-      case 0x08:  // LD (imm), SP
+      case 0x08:  // LD (u16), SP
         memory.write_half(read_half_pc(), sp);
         break;
       case 0x09:  // ADD HL, BC
-        add_half(bc());
+        set_hl(add_half(hl(), bc()));
         break;
       case 0x0A:  // LD A, (BC)
         a = memory.read_byte(bc());
@@ -365,7 +365,7 @@ struct Cpu {
       case 0x0D:  // DEC C
         c = dec(c);
         break;
-      case 0x0E:  // LD C, imm
+      case 0x0E:  // LD C, u8
         c = read_byte_pc();
         break;
       case 0x0F:  // RRCA
@@ -374,7 +374,7 @@ struct Cpu {
         break;
       case 0x10:  // STOP
         break;
-      case 0x11:  // LD DE, imm
+      case 0x11:  // LD DE, u16
         e = read_byte_pc();
         d = read_byte_pc();
         break;
@@ -390,19 +390,19 @@ struct Cpu {
       case 0x15:  // DEC D
         d = dec(d);
         break;
-      case 0x16:  // LD D, imm
+      case 0x16:  // LD D, u8
         d = read_byte_pc();
         break;
       case 0x17:  // RLA
-        a = (a << 7) | fc();
+        a = (a << 1) | fc();
         set_f(0, 0, 0, a >> 8);
         a = a & 0xFF;
         break;
-      case 0x18:  // JR imm
+      case 0x18:  // JR s8
         jr(true);
         break;
       case 0x19:  // ADD HL, DE
-        add_half(de());
+        set_hl(add_half(hl(), de()));
         break;
       case 0x1A:  // LD A, (DE)
         a = memory.read_byte(de());
@@ -416,7 +416,7 @@ struct Cpu {
       case 0x1D:  // DEC E
         e = dec(e);
         break;
-      case 0x1E:  // LD E, imm
+      case 0x1E:  // LD E, u8
         e = read_byte_pc();
         break;
       case 0x1F:  // RRA
@@ -424,10 +424,10 @@ struct Cpu {
         set_f(0, 0, 0, a & 0x1);
         a = a >> 1;
         break;
-      case 0x20:  // JR NZ, imm
+      case 0x20:  // JR NZ, s8
         jr(!fz());
         break;
-      case 0x21:  // LD HL, imm
+      case 0x21:  // LD HL, u16
         l = read_byte_pc();
         h = read_byte_pc();
         break;
@@ -444,10 +444,11 @@ struct Cpu {
       case 0x25:  // DEC H
         h = dec(h);
         break;
-      case 0x26:  // LD H, imm
+      case 0x26:  // LD H, u8
         h = read_byte_pc();
         break;
       case 0x27:  // DAA
+        // Todo: CONTINUE HERE
         // Todo: implement https://ehaskins.com/2018-01-30%20Z80%20DAA/
         break;
       case 0x28:  // JR Z, imm
