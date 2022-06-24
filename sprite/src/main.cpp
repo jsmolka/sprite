@@ -349,7 +349,7 @@ struct Cpu {
       case 0x06:  // LD B, u8
         b = read_byte_pc();
         break;
-      case 0x07:  // RCLA
+      case 0x07:  // RLCA
         a = ((a << 1) | (a >> 7)) & 0xFF;
         set_f(0, 0, 0, a & 0x1);
         break;
@@ -961,7 +961,7 @@ struct Cpu {
         jp(fz());
         break;
       case 0xCB:  // PREFIX CB
-        // Todo: implement
+        prefix();
         break;
       case 0xCC:  // CALL Z, u16
         call(fz());
@@ -1095,6 +1095,109 @@ struct Cpu {
       case 0xFF:  // RST 0x38
         rst(0x38);
         break;
+    }
+  }
+
+  void prefix() {
+    dzint opcode = read_byte_pc();
+
+    dzint operand;
+    switch (opcode & 0x7) {
+      case 0x0:
+        operand = b;
+        break;
+      case 0x1:
+        operand = c;
+        break;
+      case 0x2:
+        operand = d;
+        break;
+      case 0x3:
+        operand = e;
+        break;
+      case 0x4:
+        operand = h;
+        break;
+      case 0x5:
+        operand = l;
+        break;
+      case 0x6:
+        operand = memory.read_byte(hl());
+        break;
+      default:
+        operand = a;
+        break;
+    }
+
+    dzbool writeback = true;
+    if (opcode <= 0x07) {  // RLC operand
+      operand = ((operand << 1) | (operand >> 7)) & 0xFF;
+      set_f(operand == 0, 0, 0, operand & 0x1);
+    } else if (opcode <= 0x0F) {  // RRC operand
+      set_f(0, 0, 0, operand & 0x1);
+      operand = ((operand >> 1) | (operand << 7)) & 0xFF;
+    } else if (opcode <= 0x17) {  // RL operand
+      operand = (operand << 1) | fc();
+      set_f(0, 0, 0, operand >> 8);
+      operand = operand & 0xFF;
+    } else if (opcode <= 0x1F) {  // RR operand
+      operand = operand | (fc() << 8);
+      set_f(0, 0, 0, operand & 0x1);
+      operand = operand >> 1;
+    } else if (opcode <= 0x27) {  // SLA operand
+      auto value = operand;
+      operand = (operand << 1) & 0xFF;
+      set_f(operand == 0, 0, 0, value >> 7);
+    } else if (opcode <= 0x2F) {  // SRA operand
+      auto value = operand;
+      operand = (operand & 0x80) | (operand >> 1);
+      set_f(operand == 0, 0, 0, value & 0x1);
+    } else if (opcode <= 0x37) {  // SWAP operand
+      operand = ((operand & 0x0F) << 4) | ((operand & 0xF0) >> 4);
+      set_f(operand == 0, 0, 0, 0);
+    } else if (opcode <= 0x3F) {  // SRL operand
+      auto value = operand;
+      operand = operand >> 1;
+      set_f(operand == 0, 0, 0, value & 0x1);
+    } else if (opcode <= 0x7F) {  // BIT n, operand
+      auto bit = (opcode - 0x40) >> 3;
+      set_f(!(operand & (1LL << bit)), 0, 1, null);
+      writeback = false;
+    } else if (opcode <= 0xBF) {  // RES n, operand
+      auto bit = (opcode - 0x80) >> 3;
+      operand = operand & ~(1LL << bit);
+    } else if (opcode <= 0xFF) {  // SET n, operand
+      auto bit = (opcode - 0xC0) >> 3;
+      operand = operand | (1LL << bit);
+    }
+
+    if (writeback) {
+      switch (opcode & 0x7) {
+        case 0x0:
+          b = operand;
+          break;
+        case 0x1:
+          c = operand;
+          break;
+        case 0x2:
+          d = operand;
+          break;
+        case 0x3:
+          e = operand;
+          break;
+        case 0x4:
+          h = operand;
+          break;
+        case 0x5:
+          l = operand;
+          break;
+        case 0x6:
+          memory.write_byte(hl(), operand); 
+          break;
+        default:
+          a = operand;
+          break;
+      }
     }
   }
 };
