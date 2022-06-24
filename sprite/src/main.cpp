@@ -111,6 +111,8 @@ struct Cpu {
 
   dzint pc = 0;
   dzint sp = 0;
+  dzbool halt = false;
+  dzbool ime = true;
   Memory memory;
 
   auto af() const -> dzint {
@@ -202,59 +204,14 @@ struct Cpu {
     return value;
   }
 
+  auto read_signed_byte_pc() -> dzint {
+    return read_byte_pc() << 56 >> 56;
+  }
+
   auto read_half_pc() -> dzint {
     auto value = memory.read_half(pc);
     pc = (pc + 2) & 0xFFFF;
     return value;
-  }
-
-  void jp(dzbool condition) {
-    if (condition) {
-      pc = read_half_pc();
-    } else {
-      pc = (pc + 2) & 0xFFFF;
-    }
-  }
-
-  void jr(dzbool condition) {
-    dzint offset = 1;
-    if (condition) {
-      offset = (read_byte_pc() << 56) >> 56;
-    }
-    pc = (pc + offset) & 0xFFFF;
-  }
-
-  void push(dzint half) {
-    sp = (sp - 2) & 0xFFFF;
-    memory.write_half(sp, half);
-  }
-
-  auto pop() -> dzint {
-    auto value = memory.read_half(sp);
-    sp = (sp + 2) & 0xFFFF;
-    return value;
-  }
-
-  void call(dzbool condition) {
-    if (condition) {
-      auto addr = read_half_pc();
-      push(pc);
-      pc = addr;
-    } else {
-      pc = (pc + 2) & 0xFFFF;
-    }
-  }
-
-  void ret(dzbool condition) {
-    if (condition) {
-      pc = memory.read_half(sp);
-      sp = (sp + 2) & 0xFFFF;
-    }
-  }
-
-  void rst(dzint addr) {
-    push(pc);
-    pc = addr;
   }
 
   auto inc(dzint value) -> dzint {
@@ -317,6 +274,55 @@ struct Cpu {
   void or_(dzint b) {
     a = a | b;
     set_f(a == 0, 0, 0, 0);
+  }
+
+  void jp(dzbool condition) {
+    if (condition) {
+      pc = read_half_pc();
+    } else {
+      pc = (pc + 2) & 0xFFFF;
+    }
+  }
+
+  void jr(dzbool condition) {
+    dzint offset = 1;
+    if (condition) {
+      offset = read_signed_byte_pc();
+    }
+    pc = (pc + offset) & 0xFFFF;
+  }
+
+  void push(dzint half) {
+    sp = (sp - 2) & 0xFFFF;
+    memory.write_half(sp, half);
+  }
+
+  auto pop() -> dzint {
+    auto value = memory.read_half(sp);
+    sp = (sp + 2) & 0xFFFF;
+    return value;
+  }
+
+  void call(dzbool condition) {
+    if (condition) {
+      auto addr = read_half_pc();
+      push(pc);
+      pc = addr;
+    } else {
+      pc = (pc + 2) & 0xFFFF;
+    }
+  }
+
+  void ret(dzbool condition) {
+    if (condition) {
+      pc = memory.read_half(sp);
+      sp = (sp + 2) & 0xFFFF;
+    }
+  }
+
+  void rst(dzint addr) {
+    push(pc);
+    pc = addr;
   }
 
   void step() {
@@ -447,15 +453,32 @@ struct Cpu {
       case 0x26:  // LD H, u8
         h = read_byte_pc();
         break;
-      case 0x27:  // DAA
-        // Todo: CONTINUE HERE
-        // Todo: implement https://ehaskins.com/2018-01-30%20Z80%20DAA/
+      case 0x27: {  // DAA
+        auto value = a;
+        if (fn()) {
+          if (fh()) {
+            value = (value - 0x06) & 0xFF;
+          }
+          if (fc()) {
+            value = value - 0x60;
+          }
+        } else {
+          if (fh() || (value & 0x0F) > 9) {
+            value = value + 0x06;
+          }
+          if (fc() || value > 0x9F) {
+            value = value + 0x60;
+          }
+        }
+        a = value & 0xFF;
+        set_f(value == 0, null, 0, (value & 0x100) == 0x100);
         break;
-      case 0x28:  // JR Z, imm
+      }
+      case 0x28:  // JR Z, s8
         jr(fz());
         break;
       case 0x29:  // ADD HL, HL
-        add_half(hl());
+        set_hl(add_half(hl(), hl()));
         break;
       case 0x2A:  // LD A, (HL+)
         a = memory.read_byte(hl());
@@ -470,17 +493,17 @@ struct Cpu {
       case 0x2D:  // DEC L
         l = dec(l);
         break;
-      case 0x2E:  // LD L, imm
+      case 0x2E:  // LD L, u8
         l = read_byte_pc();
         break;
       case 0x2F:  // CPL
         a = ~a;
         set_f(null, 1, 1, null);
         break;
-      case 0x30:  // JR NC, imm
+      case 0x30:  // JR NC, s8
         jr(!fc());
         break;
-      case 0x31:  // LD SP, imm
+      case 0x31:  // LD SP, u16
         sp = read_half_pc();
         break;
       case 0x32:  // LD (HL-), A
@@ -502,11 +525,11 @@ struct Cpu {
       case 0x37:  // SCF
         set_f(null, 0, 0, 1);
         break;
-      case 0x38:  // JR C, imm
+      case 0x38:  // JR C, s8
         jr(fc());
         break;
       case 0x39:  // ADD HL, SP
-        add_half(sp);
+        set_hl(add_half(hl(), sp));
         break;
       case 0x3A:  // LD A, (HL-)
         a = memory.read_byte(hl());
@@ -521,7 +544,7 @@ struct Cpu {
       case 0x3D:  // DEC A
         a = dec(a);
         break;
-      case 0x3E:  // LD A, imm
+      case 0x3E:  // LD A, u8
         a = read_byte_pc();
         break;
       case 0x3F:  // CCF
@@ -684,7 +707,7 @@ struct Cpu {
         memory.write_byte(hl(), l);
         break;
       case 0x76:  // HALT
-        // Todo: implement
+        halt = true;
         break;
       case 0x77:  // LD (HL), A
         memory.write_byte(hl(), a);
@@ -712,196 +735,196 @@ struct Cpu {
         break;
       case 0x7F:  // LD A, A
         break;
-      case 0x80:  // ADD B
+      case 0x80:  // ADD A, B
         add(b);
         break;
-      case 0x81:  // ADD C
+      case 0x81:  // ADD A, C
         add(c);
         break;
-      case 0x82:  // ADD D
+      case 0x82:  // ADD A, D
         add(d);
         break;
-      case 0x83:  // ADD E
+      case 0x83:  // ADD A, E
         add(e);
         break;
-      case 0x84:  // ADD H
+      case 0x84:  // ADD A, H
         add(h);
         break;
-      case 0x85:  // ADD L
+      case 0x85:  // ADD A, L
         add(l);
         break;
-      case 0x86:  // ADD (HL)
+      case 0x86:  // ADD A, (HL)
         add(memory.read_byte(hl()));
         break;
-      case 0x87:  // ADD A
+      case 0x87:  // ADD A, A
         add(a);
         break;
-      case 0x88:  // ADC B
+      case 0x88:  // ADC A, B
         adc(b);
         break;
-      case 0x89:  // ADC C
+      case 0x89:  // ADC A, C
         adc(c);
         break;
-      case 0x8A:  // ADC D
+      case 0x8A:  // ADC A, D
         adc(d);
         break;
-      case 0x8B:  // ADC E
+      case 0x8B:  // ADC A, E
         adc(e);
         break;
-      case 0x8C:  // ADC H
+      case 0x8C:  // ADC A, H
         adc(h);
         break;
-      case 0x8D:  // ADC L
+      case 0x8D:  // ADC A, L
         adc(l);
         break;
-      case 0x8E:  // ADC (HL)
+      case 0x8E:  // ADC A, (HL)
         adc(memory.read_byte(hl()));
         break;
-      case 0x8F:  // ADC A
+      case 0x8F:  // ADC A, A
         adc(a);
         break;
-      case 0x90:  // SUB B
+      case 0x90:  // SUB A, B
         sub(b);
         break;
-      case 0x91:  // SUB C
+      case 0x91:  // SUB A, C
         sub(c);
         break;
-      case 0x92:  // SUB D
+      case 0x92:  // SUB A, D
         sub(d);
         break;
-      case 0x93:  // SUB E
+      case 0x93:  // SUB A, E
         sub(e);
         break;
-      case 0x94:  // SUB H
+      case 0x94:  // SUB A, H
         sub(h);
         break;
-      case 0x95:  // SUB L
+      case 0x95:  // SUB A, L
         sub(l);
         break;
-      case 0x96:  // SUB (HL)
+      case 0x96:  // SUB A, (HL)
         sub(memory.read_byte(hl()));
         break;
-      case 0x97:  // SUB A
+      case 0x97:  // SUB A, A
         sub(a);
         break;
-      case 0x98:  // SBC B
+      case 0x98:  // SBC A, B
         sbc(b);
         break;
-      case 0x99:  // SBC C
+      case 0x99:  // SBC A, C
         sbc(c);
         break;
-      case 0x9A:  // SBC D
+      case 0x9A:  // SBC A, D
         sbc(d);
         break;
-      case 0x9B:  // SBC E
+      case 0x9B:  // SBC A, E
         sbc(e);
         break;
-      case 0x9C:  // SBC H
+      case 0x9C:  // SBC A, H
         sbc(h);
         break;
-      case 0x9D:  // SBC L
+      case 0x9D:  // SBC A, L
         sbc(l);
         break;
-      case 0x9E:  // SBC (HL)
+      case 0x9E:  // SBC A, (HL)
         sbc(memory.read_byte(hl()));
         break;
-      case 0x9F:  // SBC A
+      case 0x9F:  // SBC A, A
         sbc(a);
         break;
-      case 0xA0:  // AND B
+      case 0xA0:  // AND A, B
         and_(b);
         break;
-      case 0xA1:  // AND C
+      case 0xA1:  // AND A, C
         and_(c);
         break;
-      case 0xA2:  // AND D
+      case 0xA2:  // AND A, D
         and_(d);
         break;
-      case 0xA3:  // AND E
+      case 0xA3:  // AND A, E
         and_(e);
         break;
-      case 0xA4:  // AND H
+      case 0xA4:  // AND A, H
         and_(h);
         break;
-      case 0xA5:  // AND L
+      case 0xA5:  // AND A, L
         and_(l);
         break;
-      case 0xA6:  // AND (HL)
+      case 0xA6:  // AND A, (HL)
         and_(memory.read_byte(hl()));
         break;
-      case 0xA7:  // AND A
+      case 0xA7:  // AND A, A
         and_(a);
         break;
-      case 0xA8:  // XOR B
+      case 0xA8:  // XOR A, B
         xor_(b);
         break;
-      case 0xA9:  // XOR C
+      case 0xA9:  // XOR A, C
         xor_(c);
         break;
-      case 0xAA:  // XOR D
+      case 0xAA:  // XOR A, D
         xor_(d);
         break;
-      case 0xAB:  // XOR E
+      case 0xAB:  // XOR A, E
         xor_(e);
         break;
-      case 0xAC:  // XOR H
+      case 0xAC:  // XOR A, H
         xor_(h);
         break;
-      case 0xAD:  // XOR L
+      case 0xAD:  // XOR A, L
         xor_(l);
         break;
-      case 0xAE:  // XOR (HL)
+      case 0xAE:  // XOR A, (HL)
         xor_(memory.read_byte(hl()));
         break;
-      case 0xAF:  // XOR A
+      case 0xAF:  // XOR A, A
         xor_(a);
         break;
-      case 0xB0:  // OR B
+      case 0xB0:  // OR A, B
         or_(b);
         break;
-      case 0xB1:  // OR C
+      case 0xB1:  // OR A, C
         or_(c);
         break;
-      case 0xB2:  // OR D
+      case 0xB2:  // OR A, D
         or_(d);
         break;
-      case 0xB3:  // OR E
+      case 0xB3:  // OR A, E
         or_(e);
         break;
-      case 0xB4:  // OR H
+      case 0xB4:  // OR A, H
         or_(h);
         break;
-      case 0xB5:  // OR L
+      case 0xB5:  // OR A, L
         or_(l);
         break;
-      case 0xB6:  // OR (HL)
+      case 0xB6:  // OR A, (HL)
         or_(memory.read_byte(hl()));
         break;
-      case 0xB7:  // OR A
+      case 0xB7:  // OR A, A
         or_(a);
         break;
-      case 0xB8:  // CP B
+      case 0xB8:  // CP A, B
         cp(b);
         break;
-      case 0xB9:  // CP C
+      case 0xB9:  // CP A, C
         cp(c);
         break;
-      case 0xBA:  // CP D
+      case 0xBA:  // CP A, D
         cp(d);
         break;
-      case 0xBB:  // CP E
+      case 0xBB:  // CP A, E
         cp(e);
         break;
-      case 0xBC:  // CP H
+      case 0xBC:  // CP A, H
         cp(h);
         break;
-      case 0xBD:  // CP L
+      case 0xBD:  // CP A, L
         cp(l);
         break;
-      case 0xBE:  // CP (HL)
+      case 0xBE:  // CP A, (HL)
         cp(memory.read_byte(hl()));
         break;
-      case 0xBF:  // CP A
+      case 0xBF:  // CP A, A
         cp(a);
         break;
       case 0xC0:  // RET NZ
@@ -910,22 +933,22 @@ struct Cpu {
       case 0xC1:  // POP BC
         set_bc(pop());
         break;
-      case 0xC2:  // JP NZ, imm
+      case 0xC2:  // JP NZ, u16
         jp(!fz());
         break;
-      case 0xC3:  // JP imm
+      case 0xC3:  // JP u16
         jp(true);
         break;
-      case 0xC4:  // CALL NZ, imm
+      case 0xC4:  // CALL NZ, u16
         call(!fz());
         break;
       case 0xC5:  // PUSH BC
         push(bc());
         break;
-      case 0xC6:  // ADD A, imm
+      case 0xC6:  // ADD A, u8
         add(read_byte_pc());
         break;
-      case 0xC7:  // RST 00
+      case 0xC7:  // RST 0x00
         rst(0x00);
         break;
       case 0xC8:  // RET Z
@@ -934,22 +957,22 @@ struct Cpu {
       case 0xC9:  // RET
         ret(true);
         break;
-      case 0xCA:  // JP Z, imm
+      case 0xCA:  // JP Z, u16
         jp(fz());
         break;
       case 0xCB:  // PREFIX CB
         // Todo: implement
         break;
-      case 0xCC:  // CALL Z, imm
+      case 0xCC:  // CALL Z, u16
         call(fz());
         break;
-      case 0xCD:  // CALL imm
+      case 0xCD:  // CALL u16
         call(true);
         break;
-      case 0xCE:  // ADC A, imm
+      case 0xCE:  // ADC A, u8
         adc(read_byte_pc());
         break;
-      case 0xCF:  // RST 08
+      case 0xCF:  // RST 0x08
         rst(0x08);
         break;
       case 0xD0:  // RET NC
@@ -958,40 +981,41 @@ struct Cpu {
       case 0xD1:  // POP DE
         set_de(pop());
         break;
-      case 0xD2:  // JP NC, imm
+      case 0xD2:  // JP NC, u16
         jp(!fc());
         break;
-      case 0xD4:  // CALL NC, imm
+      case 0xD4:  // CALL NC, u16
         call(!fc());
         break;
       case 0xD5:  // PUSH DE
         push(de());
         break;
-      case 0xD6:  // SUB imm
+      case 0xD6:  // SUB A, u8
         sub(read_byte_pc());
         break;
-      case 0xD7:  // RST 10
+      case 0xD7:  // RST 0x10
         rst(0x10);
         break;
       case 0xD8:  // RET C
         ret(fc());
         break;
       case 0xD9:  // RETI
-        // Todo: implement
+        pc = pop();
+        ime = true;
         break;
-      case 0xDA:  // JP C, imm
+      case 0xDA:  // JP C, u16
         jp(fc());
         break;
-      case 0xDC:  // CALL C, imm
+      case 0xDC:  // CALL C, u16
         call(fc());
         break;
-      case 0xDE:  // SBC A, imm8
+      case 0xDE:  // SBC A, u8
         sbc(read_byte_pc());
         break;
       case 0xDF:  // RST 0x18
         rst(0x18);
         break;
-      case 0xE0:  // LDH (imm8), A
+      case 0xE0:  // LDH (u8), A
         memory.write_byte(0xFF00 | read_byte_pc(), a);
         break;
       case 0xE1:  // POP HL
@@ -1003,22 +1027,26 @@ struct Cpu {
       case 0xE5:  // PUSH HL
         push(hl());
         break;
-      case 0xE6:  // AND imm8
+      case 0xE6:  // AND A, u8
         and_(read_byte_pc());
         break;
       case 0xE7:  // RST 0x20
         rst(0x20);
         break;
-      case 0xE8:  // ADD SP, s8
-        // Todo: implement
+      case 0xE8: {  // ADD SP, s8
+        auto sbyte = read_signed_byte_pc();
+        auto value = sp + sbyte;
+        set_f(0, 0, (sp ^ sbyte ^ value) & 0x10, value & 0xFF00);
+        sp = value & 0xFFFF;
         break;
+      }
       case 0xE9:  // JP (HL)
         pc = hl();
         break;
       case 0xEA:  // LD (u16), A
         memory.write_half(read_half_pc(), a);
         break;
-      case 0xEE:  // XOR u8
+      case 0xEE:  // XOR A, u8
         xor_(read_byte_pc());
         break;
       case 0xEF:  // RST 0x28
@@ -1034,20 +1062,24 @@ struct Cpu {
         a = memory.read_half(0xFF00 | c);
         break;
       case 0xF3:  // DI
-        // Todo: implement
+        ime = false;
         break;
       case 0xF5:  // PUSH AF
         push(af());
         break;
-      case 0xF6:  // OR u8
+      case 0xF6:  // OR A, u8
         or_(read_byte_pc());
         break;
       case 0xF7:  // RST 0x30
         rst(0x30);
         break;
-      case 0xF8:  // LD HL, SP + s8
-        // Todo: implement
+      case 0xF8: {  // LD HL, SP + s8
+        auto sbyte = read_signed_byte_pc();
+        auto value = sp + sbyte;
+        set_f(0, 0, (sp ^ sbyte ^ value) & 0x10, value & 0xFF00);
+        set_hl(value);
         break;
+      }
       case 0xF9:  // LD SP, HL
         sp = hl();
         break;
@@ -1055,9 +1087,9 @@ struct Cpu {
         a = memory.read_byte(read_half_pc());
         break;
       case 0xFB:  // EI
-        // Todo: implement
+        ime = true;
         break;
-      case 0xFE:  // CP u8
+      case 0xFE:  // CP A, u8
         cp(read_byte_pc());
         break;
       case 0xFF:  // RST 0x38
