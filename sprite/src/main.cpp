@@ -68,7 +68,7 @@ struct Memory {
       hram[addr - 0xFF80] = byte;
     } else if (addr >= 0xFF00) {
       if ((addr - 0xFF00) == 0x01) {
-        std::printf("[0x%04X] - %c\n", (int)addr, (char)byte);
+        std::printf("%c", (char)byte);
       }
       io[addr - 0xFF00] = byte;
     } else if (addr >= 0xFEA0) {
@@ -469,18 +469,23 @@ struct Cpu {
             value = (value - 0x06) & 0xFF;
           }
           if (fc()) {
-            value = value - 0x60;
+            value = (value - 0x60) & 0xFFFF;
           }
         } else {
           if (fh() || (value & 0x0F) > 9) {
-            value = value + 0x06;
+            value = (value + 0x06) & 0xFFFF;
           }
           if (fc() || value > 0x9F) {
-            value = value + 0x60;
+            value = (value + 0x60) & 0xFFFF;
           }
         }
+
+        if ((value & 0x100) == 0x100) {
+          set_f(null, null, null, 1);
+        }
+
         a = value & 0xFF;
-        set_f(value == 0, null, 0, (value & 0x100) == 0x100);
+        set_f((value & 0xFF) == 0, null, 0, null);
         break;
       }
       case 0x28:  // JR Z, s8
