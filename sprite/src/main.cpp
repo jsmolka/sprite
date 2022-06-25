@@ -509,7 +509,7 @@ struct Cpu {
         l = read_byte_pc();
         break;
       case 0x2F:  // CPL
-        a = ~a;
+        a = (~a & 0xFF);
         set_f(null, 1, 1, null);
         break;
       case 0x30:  // JR NC, s8
