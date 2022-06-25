@@ -324,8 +324,6 @@ struct Cpu {
     if (condition) {
       pc = memory.read_half(sp);
       sp = (sp + 2) & 0xFFFF;
-    } else {
-      pc = (pc + 2) & 0xFFFF;
     }
   }
 
