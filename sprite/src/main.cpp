@@ -1048,7 +1048,7 @@ struct Cpu {
       case 0xE8: {  // ADD SP, s8
         auto sbyte = read_signed_byte_pc();
         auto value = sp + sbyte;
-        set_f(0, 0, (sp ^ sbyte ^ value) & 0x10, value & 0xFF00);
+        set_f(0, 0, (sp & 0xF) + (sbyte & 0xF) > 0xF, (sp & 0xFF) + (sbyte & 0xFF) > 0xFF);
         sp = value & 0xFFFF;
         break;
       }
@@ -1088,7 +1088,7 @@ struct Cpu {
       case 0xF8: {  // LD HL, SP + s8
         auto sbyte = read_signed_byte_pc();
         auto value = sp + sbyte;
-        set_f(0, 0, (sp ^ sbyte ^ value) & 0x10, value & 0xFF00);
+        set_f(0, 0, (sp & 0xF) + (sbyte & 0xF) > 0xF, (sp & 0xFF) + (sbyte & 0xFF) > 0xFF);
         set_hl(value);
         break;
       }
