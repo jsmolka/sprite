@@ -1146,16 +1146,16 @@ struct Cpu {
       operand = ((operand << 1) | (operand >> 7)) & 0xFF;
       set_f(operand == 0, 0, 0, operand & 0x1);
     } else if (opcode <= 0x0F) {  // RRC operand
-      set_f(0, 0, 0, operand & 0x1);
+      set_f(operand == 0, 0, 0, operand & 0x1);
       operand = ((operand >> 1) | (operand << 7)) & 0xFF;
     } else if (opcode <= 0x17) {  // RL operand
-      operand = (operand << 1) | fc();
-      set_f(0, 0, 0, operand >> 8);
-      operand = operand & 0xFF;
+      auto carry = operand >> 7;
+      operand = ((operand << 1) | fc()) & 0xFF;
+      set_f(operand == 0, 0, 0, carry);
     } else if (opcode <= 0x1F) {  // RR operand
-      operand = operand | (fc() << 8);
-      set_f(0, 0, 0, operand & 0x1);
-      operand = operand >> 1;
+      auto carry = operand & 0x1;
+      operand = (operand | (fc() << 8)) >> 1;
+      set_f(operand == 0, 0, 0, carry);
     } else if (opcode <= 0x27) {  // SLA operand
       auto value = operand;
       operand = (operand << 1) & 0xFF;
