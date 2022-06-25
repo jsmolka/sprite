@@ -1,4 +1,7 @@
 #include <cstdint>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
 #include <optional>
 #include <vector>
 
@@ -14,7 +17,7 @@ using dzbytes = dzlist<std::uint8_t>;
 
 struct Memory {
   Memory() {
-    rom.resize(0x4000, 0);
+    rom.resize(0x8000, 0);
     vram.resize(0x2000, 0);
     eram.resize(0x2000, 0);
     wram.resize(0x2000, 0);
@@ -46,7 +49,7 @@ struct Memory {
     } else if (addr >= 0x8000) {
       return vram[addr - 0x8000];
     } else if (addr >= 0x4000) {
-      return 0;  // Todo: implement, see https://gbdev.io/pandocs/The_Cartridge_Header.html#the-cartridge-header
+      return rom[addr];  // Todo: implement, see https://gbdev.io/pandocs/The_Cartridge_Header.html#the-cartridge-header
     } else {
       return rom[addr];
     }
@@ -64,6 +67,9 @@ struct Memory {
     } else if (addr >= 0xFF80) {
       hram[addr - 0xFF80] = byte;
     } else if (addr >= 0xFF00) {
+      if ((addr - 0xFF00) == 0x01) {
+        std::printf("[0x%04X] - %c\n", (int)addr, (char)byte);
+      }
       io[addr - 0xFF00] = byte;
     } else if (addr >= 0xFEA0) {
       noop;
@@ -100,17 +106,17 @@ struct Memory {
 };
 
 struct Cpu {
-  dzint a = 0;
-  dzint f = 0;
-  dzint b = 0;
-  dzint c = 0;
-  dzint d = 0;
-  dzint e = 0;
-  dzint h = 0;
-  dzint l = 0;
+  dzint a = 0x01;
+  dzint f = 0xB0;
+  dzint b = 0x00;
+  dzint c = 0x13;
+  dzint d = 0x00;
+  dzint e = 0xD8;
+  dzint h = 0x01;
+  dzint l = 0x4D;
 
-  dzint pc = 0;
-  dzint sp = 0;
+  dzint pc = 0x0100;
+  dzint sp = 0xFFFE;
   dzbool halt = false;
   dzbool ime = true;
   Memory memory;
@@ -120,7 +126,7 @@ struct Cpu {
   }
 
   void set_af(dzint value) {
-    f = value & 0xFF;
+    f = value & 0xF0;
     a = (value >> 8) & 0xFF;
   }
 
@@ -232,6 +238,7 @@ struct Cpu {
     a = value & 0xFF;
   }
 
+  // Todo: this is always used this HL()
   auto add_half(dzint a, dzint b) -> dzint {
     auto value = a + b;
     set_f(null, 0, (a ^ b ^ value) & 0x1000, value & 0xFFFF0000);
@@ -317,6 +324,8 @@ struct Cpu {
     if (condition) {
       pc = memory.read_half(sp);
       sp = (sp + 2) & 0xFFFF;
+    } else {
+      pc = (pc + 2) & 0xFFFF;
     }
   }
 
@@ -328,7 +337,6 @@ struct Cpu {
   void step() {
     switch (read_byte_pc()) {
       case 0x00:  // NOP
-        noop;
         break;
       case 0x01:  // LD BC, u16
         c = read_byte_pc();
@@ -454,6 +462,7 @@ struct Cpu {
         h = read_byte_pc();
         break;
       case 0x27: {  // DAA
+        // Todo: this is probably wrong because of signedness
         auto value = a;
         if (fn()) {
           if (fh()) {
@@ -519,7 +528,7 @@ struct Cpu {
       case 0x35:  // DEC (HL)
         memory.write_byte(hl(), dec(memory.read_byte(hl())));
         break;
-      case 0x36:  // LD (HL), imm
+      case 0x36:  // LD (HL), u8
         memory.write_byte(hl(), read_byte_pc());
         break;
       case 0x37:  // SCF
@@ -1044,7 +1053,7 @@ struct Cpu {
         pc = hl();
         break;
       case 0xEA:  // LD (u16), A
-        memory.write_half(read_half_pc(), a);
+        memory.write_byte(read_half_pc(), a);
         break;
       case 0xEE:  // XOR A, u8
         xor_(read_byte_pc());
@@ -1059,7 +1068,7 @@ struct Cpu {
         set_af(pop());
         break;
       case 0xF2:  // LDH A, (C)
-        a = memory.read_half(0xFF00 | c);
+        a = memory.read_byte(0xFF00 | c);
         break;
       case 0xF3:  // DI
         ime = false;
@@ -1206,7 +1215,35 @@ struct GameBoy {
   Cpu cpu;
 };
 
+auto read(const std::filesystem::path& file, dzbytes& dst) {
+  auto stream = std::ifstream(file, std::ios::binary);
+  if (!stream.is_open() || !stream) {
+    return false;
+  }
+
+  const auto size = std::filesystem::file_size(file);
+  dst.resize(size);
+
+  stream.read(reinterpret_cast<char*>(dst.data()), size);
+  if (!stream) {
+    return false;
+  }
+  return true;
+}
+
 int main(int argc, char* argv[]) {
   GameBoy gb;
+
+  if (argc > 1) {
+    if (!read(argv[1], gb.cpu.memory.rom)) {
+      std::printf("cannot read '%s'\n", argv[1]);
+      return 1;
+    }
+  }
+
+  while (true) {
+    gb.cpu.step();
+  }
+
   return 0;
 }
