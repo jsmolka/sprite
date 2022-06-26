@@ -5,18 +5,20 @@
 #include <optional>
 #include <vector>
 
-#define noop static_cast<void>(0)
 #define null std::nullopt
 
 using dzbool = bool;
-using dzint = std::int64_t;
+using dzint  = std::int64_t;
+using dzbyte = std::uint8_t;
 
 template<typename T>
-using dzlist = std::vector<T>;
-using dzbytes = dzlist<std::uint8_t>;
+using dzlist  = std::vector<T>;
+using dzbytes = dzlist<dzbyte>;
 
-struct Memory {
-  Memory() {
+constexpr auto noop = 0;
+
+struct GameBoy {
+  GameBoy() {
     rom.resize(0x8000, 0);
     vram.resize(0x2000, 0);
     eram.resize(0x2000, 0);
@@ -24,76 +26,22 @@ struct Memory {
     oam.resize(0x100, 0);
     io.resize(0x80, 0);
     hram.resize(0x7F, 0);
-    ie = 0;
   }
 
-  auto read_byte(dzint addr) const -> dzint {
-    if (addr > 0xFFFF) {
-      return 0;
-    } else if (addr >= 0xFFFF) {
-      return ie;
-    } else if (addr >= 0xFF80) {
-      return hram[addr - 0xFF80];
-    } else if (addr >= 0xFF00) {
-      return io[addr - 0xFF00];
-    } else if (addr >= 0xFEA0) {
-      return 0;
-    } else if (addr >= 0xFE00) {
-      return oam[addr - 0xFE00];
-    } else if (addr >= 0xE000) {
-      return wram[addr - 0xE000];
-    } else if (addr >= 0xC000) {
-      return wram[addr - 0xC000];
-    } else if (addr >= 0xA000) {
-      return eram[addr - 0xA000];
-    } else if (addr >= 0x8000) {
-      return vram[addr - 0x8000];
-    } else if (addr >= 0x4000) {
-      return rom[addr];  // Todo: implement, see https://gbdev.io/pandocs/The_Cartridge_Header.html#the-cartridge-header
-    } else {
-      return rom[addr];
-    }
-  }
+  dzint a = 0;
+  dzint f = 0;
+  dzint b = 0;
+  dzint c = 0;
+  dzint d = 0;
+  dzint e = 0;
+  dzint h = 0;
+  dzint l = 0;
 
-  auto read_half(dzint addr) const -> dzint {
-    return read_byte(addr) | (read_byte(addr + 1) << 8);
-  }
-
-  void write_byte(dzint addr, dzint byte) {
-    if (addr > 0xFFFF) {
-      noop;
-    } else if (addr >= 0xFFFF) {
-      ie = byte;
-    } else if (addr >= 0xFF80) {
-      hram[addr - 0xFF80] = byte;
-    } else if (addr >= 0xFF00) {
-      if ((addr - 0xFF00) == 0x01) {
-        std::printf("%c", (char)byte);
-      }
-      io[addr - 0xFF00] = byte;
-    } else if (addr >= 0xFEA0) {
-      noop;
-    } else if (addr >= 0xFE00) {
-      oam[addr - 0xFE00] = byte;
-    } else if (addr >= 0xE000) {
-      wram[addr - 0xE000] = byte;
-    } else if (addr >= 0xC000) {
-      wram[addr - 0xC000] = byte;
-    } else if (addr >= 0xA000) {
-      eram[addr - 0xA000] = byte;
-    } else if (addr >= 0x8000) {
-      vram[addr - 0x8000] = byte;
-    } else if (addr >= 0x4000) {
-      noop;  // Todo: implement, see https://gbdev.io/pandocs/The_Cartridge_Header.html#the-cartridge-header
-    } else {
-      rom[addr] = byte;
-    }
-  }
-
-  void write_half(dzint addr, dzint half) {
-    write_byte(addr, half & 0xFF);
-    write_byte(addr + 1, (half >> 8) & 0xFF);
-  }
+  dzint pc   = 0x0100;
+  dzint sp   = 0xFFFE;
+  dzint halt = 0;
+  dzint ie   = 0;
+  dzint ime  = 1;
 
   dzbytes rom;
   dzbytes vram;
@@ -102,24 +50,6 @@ struct Memory {
   dzbytes oam;
   dzbytes io;
   dzbytes hram;
-  dzint ie;
-};
-
-struct Cpu {
-  dzint a = 0x01;
-  dzint f = 0xB0;
-  dzint b = 0x00;
-  dzint c = 0x13;
-  dzint d = 0x00;
-  dzint e = 0xD8;
-  dzint h = 0x01;
-  dzint l = 0x4D;
-
-  dzint pc = 0x0100;
-  dzint sp = 0xFFFE;
-  dzbool halt = false;
-  dzbool ime = true;
-  Memory memory;
 
   auto af() const -> dzint {
     return f | (a << 8);
@@ -204,8 +134,76 @@ struct Cpu {
     }
   }
 
+  auto read_byte(dzint addr) const -> dzint {
+    if (addr > 0xFFFF) {
+      return 0;
+    } else if (addr >= 0xFFFF) {
+      return ie;
+    } else if (addr >= 0xFF80) {
+      return hram[addr - 0xFF80];
+    } else if (addr >= 0xFF00) {
+      return io[addr - 0xFF00];
+    } else if (addr >= 0xFEA0) {
+      return 0;
+    } else if (addr >= 0xFE00) {
+      return oam[addr - 0xFE00];
+    } else if (addr >= 0xE000) {
+      return wram[addr - 0xE000];
+    } else if (addr >= 0xC000) {
+      return wram[addr - 0xC000];
+    } else if (addr >= 0xA000) {
+      return eram[addr - 0xA000];
+    } else if (addr >= 0x8000) {
+      return vram[addr - 0x8000];
+    } else if (addr >= 0x4000) {
+      return rom[addr];  // Todo: implement, see https://gbdev.io/pandocs/The_Cartridge_Header.html#the-cartridge-header
+    } else {
+      return rom[addr];
+    }
+  }
+
+  auto read_half(dzint addr) const -> dzint {
+    return read_byte(addr) | (read_byte(addr + 1) << 8);
+  }
+
+  void write_byte(dzint addr, dzint byte) {
+    if (addr > 0xFFFF) {
+      noop;
+    } else if (addr >= 0xFFFF) {
+      ie = byte;
+    } else if (addr >= 0xFF80) {
+      hram[addr - 0xFF80] = byte;
+    } else if (addr >= 0xFF00) {
+      if ((addr - 0xFF00) == 0x01) {
+        std::printf("%c", (char)byte);
+      }
+      io[addr - 0xFF00] = byte;
+    } else if (addr >= 0xFEA0) {
+      noop;
+    } else if (addr >= 0xFE00) {
+      oam[addr - 0xFE00] = byte;
+    } else if (addr >= 0xE000) {
+      wram[addr - 0xE000] = byte;
+    } else if (addr >= 0xC000) {
+      wram[addr - 0xC000] = byte;
+    } else if (addr >= 0xA000) {
+      eram[addr - 0xA000] = byte;
+    } else if (addr >= 0x8000) {
+      vram[addr - 0x8000] = byte;
+    } else if (addr >= 0x4000) {
+      noop;  // Todo: implement, see https://gbdev.io/pandocs/The_Cartridge_Header.html#the-cartridge-header
+    } else {
+      rom[addr] = byte;
+    }
+  }
+
+  void write_half(dzint addr, dzint half) {
+    write_byte(addr, half & 0xFF);
+    write_byte(addr + 1, (half >> 8) & 0xFF);
+  }
+
   auto read_byte_pc() -> dzint {
-    auto value = memory.read_byte(pc);
+    auto value = read_byte(pc);
     pc = (pc + 1) & 0xFFFF;
     return value;
   }
@@ -215,7 +213,7 @@ struct Cpu {
   }
 
   auto read_half_pc() -> dzint {
-    auto value = memory.read_half(pc);
+    auto value = read_half(pc);
     pc = (pc + 2) & 0xFFFF;
     return value;
   }
@@ -300,11 +298,11 @@ struct Cpu {
 
   void push(dzint half) {
     sp = (sp - 2) & 0xFFFF;
-    memory.write_half(sp, half);
+    write_half(sp, half);
   }
 
   auto pop() -> dzint {
-    auto value = memory.read_half(sp);
+    auto value = read_half(sp);
     sp = (sp + 2) & 0xFFFF;
     return value;
   }
@@ -321,7 +319,7 @@ struct Cpu {
 
   void ret(dzbool condition) {
     if (condition) {
-      pc = memory.read_half(sp);
+      pc = read_half(sp);
       sp = (sp + 2) & 0xFFFF;
     }
   }
@@ -331,7 +329,7 @@ struct Cpu {
     pc = addr;
   }
 
-  void step() {
+  void step_cpu() {
     switch (read_byte_pc()) {
       case 0x00:  // NOP
         break;
@@ -340,7 +338,7 @@ struct Cpu {
         b = read_byte_pc();
         break;
       case 0x02:  // LD (BC), A
-        memory.write_byte(bc(), a);
+        write_byte(bc(), a);
         break;
       case 0x03:  // INC BC
         set_bc(bc() + 1);
@@ -359,13 +357,13 @@ struct Cpu {
         set_f(0, 0, 0, a & 0x1);
         break;
       case 0x08:  // LD (u16), SP
-        memory.write_half(read_half_pc(), sp);
+        write_half(read_half_pc(), sp);
         break;
       case 0x09:  // ADD HL, BC
         add_half(bc());
         break;
       case 0x0A:  // LD A, (BC)
-        a = memory.read_byte(bc());
+        a = read_byte(bc());
         break;
       case 0x0B:  // DEC BC
         set_bc(bc() - 1);
@@ -390,7 +388,7 @@ struct Cpu {
         d = read_byte_pc();
         break;
       case 0x12:  // LD (DE), A
-        memory.write_byte(de(), a);
+        write_byte(de(), a);
         break;
       case 0x13:  // INC DE
         set_de(de() + 1);
@@ -416,7 +414,7 @@ struct Cpu {
         add_half(de());
         break;
       case 0x1A:  // LD A, (DE)
-        a = memory.read_byte(de());
+        a = read_byte(de());
         break;
       case 0x1B:  // DEC DE
         set_de(de() - 1);
@@ -443,7 +441,7 @@ struct Cpu {
         h = read_byte_pc();
         break;
       case 0x22:  // LD (HL+), A
-        memory.write_byte(hl(), a);
+        write_byte(hl(), a);
         set_hl(hl() + 1);
         break;
       case 0x23:  // INC HL
@@ -488,7 +486,7 @@ struct Cpu {
         add_half(hl());
         break;
       case 0x2A:  // LD A, (HL+)
-        a = memory.read_byte(hl());
+        a = read_byte(hl());
         set_hl(hl() + 1);
         break;
       case 0x2B:  // DEC HL
@@ -514,20 +512,20 @@ struct Cpu {
         sp = read_half_pc();
         break;
       case 0x32:  // LD (HL-), A
-        memory.write_byte(hl(), a);
+        write_byte(hl(), a);
         set_hl(hl() - 1);
         break;
       case 0x33:  // INC SP
         sp = (sp + 1) & 0xFFFF;
         break;
       case 0x34:  // INC (HL)
-        memory.write_byte(hl(), inc(memory.read_byte(hl())));
+        write_byte(hl(), inc(read_byte(hl())));
         break;
       case 0x35:  // DEC (HL)
-        memory.write_byte(hl(), dec(memory.read_byte(hl())));
+        write_byte(hl(), dec(read_byte(hl())));
         break;
       case 0x36:  // LD (HL), u8
-        memory.write_byte(hl(), read_byte_pc());
+        write_byte(hl(), read_byte_pc());
         break;
       case 0x37:  // SCF
         set_f(null, 0, 0, 1);
@@ -539,7 +537,7 @@ struct Cpu {
         add_half(sp);
         break;
       case 0x3A:  // LD A, (HL-)
-        a = memory.read_byte(hl());
+        a = read_byte(hl());
         set_hl(hl() - 1);
         break;
       case 0x3B:  // DEC SP
@@ -575,7 +573,7 @@ struct Cpu {
         b = l;
         break;
       case 0x46:  // LD B, (HL)
-        b = memory.read_byte(hl());
+        b = read_byte(hl());
         break;
       case 0x47:  // LD B, A
         b = a;
@@ -598,7 +596,7 @@ struct Cpu {
         c = l;
         break;
       case 0x4E:  // LD C, (HL)
-        c = memory.read_byte(hl());
+        c = read_byte(hl());
         break;
       case 0x4F:  // LD C, A
         c = a;
@@ -621,7 +619,7 @@ struct Cpu {
         d = l;
         break;
       case 0x56:  // LD D, (HL)
-        d = memory.read_byte(hl());
+        d = read_byte(hl());
         break;
       case 0x57:  // LD D, A
         d = a;
@@ -644,7 +642,7 @@ struct Cpu {
         e = l;
         break;
       case 0x5E:  // LD E, (HL)
-        e = memory.read_byte(hl());
+        e = read_byte(hl());
         break;
       case 0x5F:  // LD E, A
         e = a;
@@ -667,7 +665,7 @@ struct Cpu {
         h = l;
         break;
       case 0x66:  // LD H, (HL)
-        h = memory.read_byte(hl());
+        h = read_byte(hl());
         break;
       case 0x67:  // LD H, A
         h = a;
@@ -690,34 +688,34 @@ struct Cpu {
       case 0x6D:  // LD L, L
         break;
       case 0x6E:  // LD L, (HL)
-        l = memory.read_byte(hl());
+        l = read_byte(hl());
         break;
       case 0x6F:  // LD L, A
         l = a;
         break;
       case 0x70:  // LD (HL), B
-        memory.write_byte(hl(), b);
+        write_byte(hl(), b);
         break;
       case 0x71:  // LD (HL), C
-        memory.write_byte(hl(), c);
+        write_byte(hl(), c);
         break;
       case 0x72:  // LD (HL), D
-        memory.write_byte(hl(), d);
+        write_byte(hl(), d);
         break;
       case 0x73:  // LD (HL), E
-        memory.write_byte(hl(), e);
+        write_byte(hl(), e);
         break;
       case 0x74:  // LD (HL), H
-        memory.write_byte(hl(), h);
+        write_byte(hl(), h);
         break;
       case 0x75:  // LD (HL), L
-        memory.write_byte(hl(), l);
+        write_byte(hl(), l);
         break;
       case 0x76:  // HALT
         halt = true;
         break;
       case 0x77:  // LD (HL), A
-        memory.write_byte(hl(), a);
+        write_byte(hl(), a);
         break;
       case 0x78:  // LD A, B
         a = b;
@@ -738,7 +736,7 @@ struct Cpu {
         a = l;
         break;
       case 0x7E:  // LD A, (HL)
-        a = memory.read_byte(hl());
+        a = read_byte(hl());
         break;
       case 0x7F:  // LD A, A
         break;
@@ -761,7 +759,7 @@ struct Cpu {
         add(l);
         break;
       case 0x86:  // ADD A, (HL)
-        add(memory.read_byte(hl()));
+        add(read_byte(hl()));
         break;
       case 0x87:  // ADD A, A
         add(a);
@@ -785,7 +783,7 @@ struct Cpu {
         adc(l);
         break;
       case 0x8E:  // ADC A, (HL)
-        adc(memory.read_byte(hl()));
+        adc(read_byte(hl()));
         break;
       case 0x8F:  // ADC A, A
         adc(a);
@@ -809,7 +807,7 @@ struct Cpu {
         sub(l);
         break;
       case 0x96:  // SUB A, (HL)
-        sub(memory.read_byte(hl()));
+        sub(read_byte(hl()));
         break;
       case 0x97:  // SUB A, A
         sub(a);
@@ -833,7 +831,7 @@ struct Cpu {
         sbc(l);
         break;
       case 0x9E:  // SBC A, (HL)
-        sbc(memory.read_byte(hl()));
+        sbc(read_byte(hl()));
         break;
       case 0x9F:  // SBC A, A
         sbc(a);
@@ -857,7 +855,7 @@ struct Cpu {
         and_(l);
         break;
       case 0xA6:  // AND A, (HL)
-        and_(memory.read_byte(hl()));
+        and_(read_byte(hl()));
         break;
       case 0xA7:  // AND A, A
         and_(a);
@@ -881,7 +879,7 @@ struct Cpu {
         xor_(l);
         break;
       case 0xAE:  // XOR A, (HL)
-        xor_(memory.read_byte(hl()));
+        xor_(read_byte(hl()));
         break;
       case 0xAF:  // XOR A, A
         xor_(a);
@@ -905,7 +903,7 @@ struct Cpu {
         or_(l);
         break;
       case 0xB6:  // OR A, (HL)
-        or_(memory.read_byte(hl()));
+        or_(read_byte(hl()));
         break;
       case 0xB7:  // OR A, A
         or_(a);
@@ -929,7 +927,7 @@ struct Cpu {
         cp(l);
         break;
       case 0xBE:  // CP A, (HL)
-        cp(memory.read_byte(hl()));
+        cp(read_byte(hl()));
         break;
       case 0xBF:  // CP A, A
         cp(a);
@@ -1023,13 +1021,13 @@ struct Cpu {
         rst(0x18);
         break;
       case 0xE0:  // LDH (u8), A
-        memory.write_byte(0xFF00 | read_byte_pc(), a);
+        write_byte(0xFF00 | read_byte_pc(), a);
         break;
       case 0xE1:  // POP HL
         set_hl(pop());
         break;
       case 0xE2:  // LDH (C), A
-        memory.write_byte(0xFF00 | c, a);
+        write_byte(0xFF00 | c, a);
         break;
       case 0xE5:  // PUSH HL
         push(hl());
@@ -1051,7 +1049,7 @@ struct Cpu {
         pc = hl();
         break;
       case 0xEA:  // LD (u16), A
-        memory.write_byte(read_half_pc(), a);
+        write_byte(read_half_pc(), a);
         break;
       case 0xEE:  // XOR A, u8
         xor_(read_byte_pc());
@@ -1060,13 +1058,13 @@ struct Cpu {
         rst(0x28);
         break;
       case 0xF0:  // LDH A, u8
-        a = memory.read_byte(0xFF00 | read_byte_pc());
+        a = read_byte(0xFF00 | read_byte_pc());
         break;
       case 0xF1:  // POP AF
         set_af(pop());
         break;
       case 0xF2:  // LDH A, (C)
-        a = memory.read_byte(0xFF00 | c);
+        a = read_byte(0xFF00 | c);
         break;
       case 0xF3:  // DI
         ime = false;
@@ -1091,7 +1089,7 @@ struct Cpu {
         sp = hl();
         break;
       case 0xFA:  // LD A, (u16)
-        a = memory.read_byte(read_half_pc());
+        a = read_byte(read_half_pc());
         break;
       case 0xFB:  // EI
         ime = true;
@@ -1129,7 +1127,7 @@ struct Cpu {
         operand = l;
         break;
       case 0x6:
-        operand = memory.read_byte(hl());
+        operand = read_byte(hl());
         break;
       default:
         operand = a;
@@ -1199,7 +1197,7 @@ struct Cpu {
           l = operand;
           break;
         case 0x6:
-          memory.write_byte(hl(), operand); 
+          write_byte(hl(), operand); 
           break;
         default:
           a = operand;
@@ -1207,38 +1205,44 @@ struct Cpu {
       }
     }
   }
+
+  auto run(const dzbytes& rom) -> dzint {
+    this->rom = rom;
+    while (true) {
+      step_cpu();
+    }
+    return 0;
+  }
 };
 
-struct GameBoy {
-  Cpu cpu;
-};
-
-auto read(const std::filesystem::path& file, dzbytes& dst) -> bool {
+auto read_bin(const std::filesystem::path& file) -> std::optional<dzbytes> {
   auto stream = std::ifstream(file, std::ios::binary);
   if (!stream.is_open() || !stream) {
-    return false;
+    return std::nullopt;
   }
 
+  dzbytes bytes;
   const auto size = std::filesystem::file_size(file);
-  dst.resize(size);
+  bytes.resize(size);
 
-  stream.read(reinterpret_cast<char*>(dst.data()), size);
-  return static_cast<bool>(stream);
+  stream.read(reinterpret_cast<char*>(bytes.data()), size);
+  if (!stream) {
+    return std::nullopt;
+  }
+  return bytes;
 }
 
 auto main(int argc, char* argv[]) -> int {
-  GameBoy gb;
-
-  if (argc > 1) {
-    if (!read(argv[1], gb.cpu.memory.rom)) {
-      std::printf("cannot read '%s'\n", argv[1]);
-      return 1;
-    }
+  if (argc < 2) {
+    std::printf("cannot run without rom");
+    return 1;
   }
 
-  while (true) {
-    gb.cpu.step();
+  auto rom = read_bin(argv[1]);
+  if (!rom) {
+    std::printf("cannot read '%s'\n", argv[1]);
+    return 1;
   }
 
-  return 0;
+  return GameBoy().run(*rom);
 }
