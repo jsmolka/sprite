@@ -251,9 +251,9 @@ struct GameBoy {
     return value;
   }
 
-  void add(dzint b) {
-    auto value = a + b;
-    set_f((value & 0xFF) == 0, 0, (a ^ b ^ value) & 0x10, value & 0xFF00);
+  void add(dzint other) {
+    auto value = a + other;
+    set_f((value & 0xFF) == 0, 0, (a ^ other ^ value) & 0x10, value & 0xFF00);
     a = value & 0xFF;
   }
 
@@ -263,41 +263,41 @@ struct GameBoy {
     set_hl(value);
   }
 
-  void adc(dzint b) {
-    auto value = a + b + fc();
-    set_f((value & 0xFF) == 0, 0, (a ^ b ^ value) & 0x10, value & 0xFF00);
+  void adc(dzint other) {
+    auto value = a + other + fc();
+    set_f((value & 0xFF) == 0, 0, (a ^ other ^ value) & 0x10, value & 0xFF00);
     a = value & 0xFF;
   }
 
-  void sub(dzint b) {
-    auto value = a - b;
-    set_f((value & 0xFF) == 0, 1, (a ^ b ^ value) & 0x10, value & 0xFF00);
+  void sub(dzint other) {
+    auto value = a - other;
+    set_f((value & 0xFF) == 0, 1, (a ^ other ^ value) & 0x10, value & 0xFF00);
     a = value & 0xFF;
   }
 
-  void sbc(dzint b) {
-    auto value = a - b - fc();
-    set_f((value & 0xFF) == 0, 1, (a ^ b ^ value) & 0x10, value & 0xFF00);
+  void sbc(dzint other) {
+    auto value = a - other - fc();
+    set_f((value & 0xFF) == 0, 1, (a ^ other ^ value) & 0x10, value & 0xFF00);
     a = value & 0xFF;
   }
 
-  void cp(dzint b) {
-    auto value = a - b;
-    set_f((value & 0xFF) == 0, 1, (a ^ b ^ value) & 0x10, value & 0xFF00);
+  void cp(dzint other) {
+    auto value = a - other;
+    set_f((value & 0xFF) == 0, 1, (a ^ other ^ value) & 0x10, value & 0xFF00);
   }
 
-  void and_(dzint b) {
-    a = a & b;
+  void and_(dzint other) {
+    a = a & other;
     set_f(a == 0, 0, 1, 0);
   }
 
-  void xor_(dzint b) {
-    a = a ^ b;
+  void xor_(dzint other) {
+    a = a ^ other;
     set_f(a == 0, 0, 0, 0);
   }
 
-  void or_(dzint b) {
-    a = a | b;
+  void or_(dzint other) {
+    a = a | other;
     set_f(a == 0, 0, 0, 0);
   }
 
@@ -317,9 +317,9 @@ struct GameBoy {
     pc = (pc + offset) & 0xFFFF;
   }
 
-  void push(dzint half) {
+  void push(dzint value) {
     sp = (sp - 2) & 0xFFFF;
-    write_half(sp, half);
+    write_half(sp, value);
   }
 
   auto pop() -> dzint {
@@ -340,8 +340,7 @@ struct GameBoy {
 
   void ret(dzbool condition) {
     if (condition) {
-      pc = read_half(sp);
-      sp = (sp + 2) & 0xFFFF;
+      pc = pop();
     }
   }
 
@@ -1156,43 +1155,43 @@ struct GameBoy {
     }
 
     auto writeback = true;
-    if (opcode <= 0x07) {  // RLC operand
+    if (opcode <= 0x07) {  // RLC
       operand = ((operand << 1) | (operand >> 7)) & 0xFF;
       set_f(operand == 0, 0, 0, operand & 0x1);
-    } else if (opcode <= 0x0F) {  // RRC operand
+    } else if (opcode <= 0x0F) {  // RRC
       set_f(operand == 0, 0, 0, operand & 0x1);
       operand = ((operand >> 1) | (operand << 7)) & 0xFF;
-    } else if (opcode <= 0x17) {  // RL operand
+    } else if (opcode <= 0x17) {  // RL
       auto carry = operand >> 7;
       operand = ((operand << 1) | fc()) & 0xFF;
       set_f(operand == 0, 0, 0, carry);
-    } else if (opcode <= 0x1F) {  // RR operand
+    } else if (opcode <= 0x1F) {  // RR
       auto carry = operand & 0x1;
       operand = (operand | (fc() << 8)) >> 1;
       set_f(operand == 0, 0, 0, carry);
-    } else if (opcode <= 0x27) {  // SLA operand
+    } else if (opcode <= 0x27) {  // SLA
       auto carry = operand >> 7;
       operand = (operand << 1) & 0xFF;
       set_f(operand == 0, 0, 0, carry);
-    } else if (opcode <= 0x2F) {  // SRA operand
+    } else if (opcode <= 0x2F) {  // SRA
       auto carry = operand & 0x1;
       operand = (operand & 0x80) | (operand >> 1);
       set_f(operand == 0, 0, 0, carry);
-    } else if (opcode <= 0x37) {  // SWAP operand
+    } else if (opcode <= 0x37) {  // SWAP
       operand = ((operand & 0x0F) << 4) | ((operand & 0xF0) >> 4);
       set_f(operand == 0, 0, 0, 0);
-    } else if (opcode <= 0x3F) {  // SRL operand
+    } else if (opcode <= 0x3F) {  // SRL
       auto carry = operand & 0x1;
       operand = operand >> 1;
       set_f(operand == 0, 0, 0, carry);
-    } else if (opcode <= 0x7F) {  // BIT n, operand
+    } else if (opcode <= 0x7F) {  // BIT n
       auto bit = (opcode - 0x40) >> 3;
       set_f(!(operand & (1LL << bit)), 0, 1, null);
       writeback = false;
-    } else if (opcode <= 0xBF) {  // RES n, operand
+    } else if (opcode <= 0xBF) {  // RES n
       auto bit = (opcode - 0x80) >> 3;
       operand = operand & ~(1LL << bit);
-    } else if (opcode <= 0xFF) {  // SET n, operand
+    } else if (opcode <= 0xFF) {  // SET n
       auto bit = (opcode - 0xC0) >> 3;
       operand = operand | (1LL << bit);
     }
@@ -1228,7 +1227,7 @@ struct GameBoy {
   }
 
   auto run(const dzbytes& rom) -> dzint {
-    // Todo: check MBC sizes here
+    // Todo: check MBC sizes
     this->rom = rom;
     this->rom.resize(0x8000, 0);
     while (true) {
