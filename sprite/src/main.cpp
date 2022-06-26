@@ -16,6 +16,25 @@ using dzbytes = dzlist<dzbyte>;
 inline constexpr auto noop = 0;
 inline constexpr auto null = std::nullopt;
 
+static constexpr dzint opcode_cycles[] = {
+   4, 12,  8,  8,  4,  4,  8,  4, 20,  8,  8,  8,  4,  4,  8,  4,
+   4, 12,  8,  8,  4,  4,  8,  4, 12,  8,  8,  8,  4,  4,  8,  4,
+   8, 12,  8,  8,  4,  4,  8,  4,  8,  8,  8,  8,  4,  4,  8,  4,
+   8, 12,  8,  8, 12, 12, 12,  4,  8,  8,  8,  8,  4,  4,  8,  4,
+   4,  4,  4,  4,  4,  4,  8,  4,  4,  4,  4,  4,  4,  4,  8,  4,
+   4,  4,  4,  4,  4,  4,  8,  4,  4,  4,  4,  4,  4,  4,  8,  4,
+   4,  4,  4,  4,  4,  4,  8,  4,  4,  4,  4,  4,  4,  4,  8,  4,
+   8,  8,  8,  8,  8,  8,  4,  8,  4,  4,  4,  4,  4,  4,  8,  4,
+   4,  4,  4,  4,  4,  4,  8,  4,  4,  4,  4,  4,  4,  4,  8,  4,
+   4,  4,  4,  4,  4,  4,  8,  4,  4,  4,  4,  4,  4,  4,  8,  4,
+   4,  4,  4,  4,  4,  4,  8,  4,  4,  4,  4,  4,  4,  4,  8,  4,
+   4,  4,  4,  4,  4,  4,  8,  4,  4,  4,  4,  4,  4,  4,  8,  4,
+   8, 12, 12, 16, 12, 16,  8, 16,  8, 16, 12,  8, 12, 24,  8, 16,
+   8, 12, 12,  0, 12, 16,  8, 16,  8, 16, 12,  0, 12,  0,  8, 16,
+  12 ,12,  8,  0,  0, 16,  8, 16, 16,  4, 16,  0,  0,  0,  8, 16,
+  12 ,12,  8,  4,  0, 16,  8, 16, 12,  8, 16,  4,  0,  0,  8, 16,
+};
+
 struct GameBoy {
   GameBoy() {
     vram.resize(0x2000, 0);
@@ -34,11 +53,12 @@ struct GameBoy {
   dzint h = 0;
   dzint l = 0;
 
-  dzint pc   = 0x0100;
-  dzint sp   = 0xFFFE;
-  dzint halt = 0;
-  dzint ie   = 0;
-  dzint ime  = 1;
+  dzint cycles = 0;
+  dzint pc     = 0x0100;
+  dzint sp     = 0xFFFE;
+  dzint halt   = 0;
+  dzint ie     = 0;
+  dzint ime    = 1;
 
   dzbytes rom;
   dzbytes vram;
@@ -413,6 +433,7 @@ struct GameBoy {
   void jp(dzbool condition) {
     if (condition) {
       pc = read_half_pc();
+      cycles = cycles + 4;
     } else {
       pc = (pc + 2) & 0xFFFF;
     }
@@ -422,6 +443,7 @@ struct GameBoy {
     dzint offset = 1;
     if (condition) {
       offset = read_signed_byte_pc();
+      cycles = cycles + 4;
     }
     pc = (pc + offset) & 0xFFFF;
   }
@@ -442,6 +464,7 @@ struct GameBoy {
       auto addr = read_half_pc();
       push(pc);
       pc = addr;
+      cycles = cycles + 12;
     } else {
       pc = (pc + 2) & 0xFFFF;
     }
@@ -450,6 +473,7 @@ struct GameBoy {
   void ret(dzbool condition) {
     if (condition) {
       pc = pop();
+      cycles = cycles + 12;
     }
   }
 
@@ -458,8 +482,10 @@ struct GameBoy {
     pc = addr;
   }
 
-  void step_cpu() {
-    switch (read_byte_pc()) {
+  auto step_cpu() -> dzint {
+    auto opcode = read_byte_pc();
+    cycles = opcode_cycles[opcode];
+    switch (opcode) {
       case 0x00:  // NOP
         break;
       case 0x01:  // LD BC, u16
@@ -1230,6 +1256,7 @@ struct GameBoy {
         rst(0x38);
         break;
     }
+    return cycles;
   }
 
   void prefix() {
@@ -1257,6 +1284,7 @@ struct GameBoy {
         break;
       case 0x6:
         operand = read_byte(hl());
+        cycles = cycles + 8;
         break;
       default:
         operand = a;
