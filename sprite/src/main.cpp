@@ -20,8 +20,9 @@ struct GameBoy {
   GameBoy() {
     vram.resize(0x2000, 0);
     wram.resize(0x2000, 0);
-    oram.resize(0x0100, 0);
-    hram.resize(0x007F, 0);
+    oam.resize(0x100, 0);
+    io.resize(0x80, 0);
+    hram.resize(0x7F, 0);
   }
 
   dzint a = 0;
@@ -42,8 +43,26 @@ struct GameBoy {
   dzbytes rom;
   dzbytes vram;
   dzbytes wram;
-  dzbytes oram;
+  dzbytes oam;
+  dzbytes io;
   dzbytes hram;
+
+  dzint joyp = 0;
+  dzint div  = 0;
+  dzint tima = 0;
+  dzint tma  = 0;
+  dzint tac  = 0;
+  dzint lcdc = 0;
+  dzint stat = 0;
+  dzint scx  = 0;
+  dzint scy  = 0;
+  dzint ly   = 0;
+  dzint lyc  = 0;
+  dzint bgp  = 0;
+  dzint obp0 = 0;
+  dzint obp1 = 0;
+  dzint wx   = 0;
+  dzint wy   = 0;
 
   auto af() const -> dzint {
     return f | (a << 8);
@@ -128,6 +147,44 @@ struct GameBoy {
     }
   }
 
+  auto read_byte_io(dzint addr) const -> dzint {
+    switch (addr) {
+      case 0x00:
+        return joyp;
+      case 0x04:
+        return div;
+      case 0x05:
+        return tima;
+      case 0x06:
+        return tma;
+      case 0x07:
+        return tac;
+      case 0x40:
+        return lcdc;
+      case 0x41:
+        return stat;
+      case 0x42:
+        return scy;
+      case 0x43:
+        return scx;
+      case 0x44:
+        return ly;
+      case 0x45:
+        return lyc;
+      case 0x47:
+        return bgp;
+      case 0x48:
+        return obp0;
+      case 0x49:
+        return obp1;
+      case 0x4A:
+        return wy;
+      case 0x4B:
+        return wx;
+    }
+    return io[addr];
+  }
+
   auto read_byte(dzint addr) const -> dzint {
     switch (addr >> 12) {
       case 0x0:
@@ -154,11 +211,11 @@ struct GameBoy {
         if (addr <= 0xFDFF) {
           return wram[addr - 0xC000];
         } else if (addr <= 0xFE9F) {
-          return oram[addr - 0xFE00];
+          return oam[addr - 0xFE00];
         } else if (addr <= 0xFEFF) {
           return 0xFF;
         } else if (addr <= 0xFF7F) {
-          return 0x00;  // Todo: implement IO
+          return read_byte_io(addr - 0xFF00);
         } else if (addr <= 0xFFFE) {
           return hram[addr - 0xFF80];
         } else {
@@ -171,6 +228,62 @@ struct GameBoy {
 
   auto read_half(dzint addr) const -> dzint {
     return read_byte(addr) | (read_byte(addr + 1) << 8);
+  }
+
+  void write_byte_io(dzint addr, dzint byte) {
+    switch (addr) {
+      case 0x00:
+        joyp = byte & 0x30;
+        return;
+      case 0x01:
+        std::printf("%c", (char)byte);
+        break;
+      case 0x04:
+        div = byte;
+        return;
+      case 0x05:
+        tima = byte;
+        return;
+      case 0x06:
+        tma = byte;
+        return;
+      case 0x07:
+        tac = byte & 0x7;
+        return;
+      case 0x40:
+        lcdc = byte;
+        return;
+      case 0x41:
+        stat = byte & 0xF7;
+        return;
+      case 0x42:
+        scy = byte;
+        return;
+      case 0x43:
+        scx = byte;
+        return;
+      case 0x44:
+        return;
+      case 0x45:
+        lyc = byte;
+        return;
+      case 0x47:
+        bgp = byte;
+        return;
+      case 0x48:
+        obp0 = byte;
+        return;
+      case 0x49:
+        obp1 = byte;
+        return;
+      case 0x4A:
+        wy = byte;
+        return;
+      case 0x4B:
+        wx = byte;
+        return;
+    }
+    io[addr] = byte;
   }
 
   void write_byte(dzint addr, dzint byte) {
@@ -200,15 +313,11 @@ struct GameBoy {
         if (addr <= 0xFDFF) {
           wram[addr - 0xC000] = byte;
         } else if (addr <= 0xFE9F) {
-          oram[addr - 0xFE00] = byte;
+          oam[addr - 0xFE00] = byte;
         } else if (addr <= 0xFEFF) {
           noop;
         } else if (addr <= 0xFF7F) {
-          // Todo: implement IO
-          addr = addr - 0xFF00;
-          if (addr == 0x01) {
-            std::printf("%c", (char)byte);
-          }
+          write_byte_io(addr - 0xFF00, byte);
         } else if (addr <= 0xFFFE) {
           hram[addr - 0xFF80] = byte;
         } else {
