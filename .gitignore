@@ -6,3 +6,9 @@ bin
 
 # CMake
 build
+
+# GB
+*.gb
+
+# drizzle
+drizzle.exe
