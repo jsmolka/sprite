@@ -238,11 +238,10 @@ struct Cpu {
     a = value & 0xFF;
   }
 
-  // Todo: this is always used this HL()
-  auto add_half(dzint a, dzint b) -> dzint {
-    auto value = a + b;
-    set_f(null, 0, (a ^ b ^ value) & 0x1000, value & 0xFFFF0000);
-    return value;
+  void add_half(dzint other) {
+    auto value = hl() + other;
+    set_f(null, 0, (hl() ^ other ^ value) & 0x1000, value & 0xFFFF0000);
+    set_hl(value);
   }
 
   void adc(dzint b) {
@@ -363,7 +362,7 @@ struct Cpu {
         memory.write_half(read_half_pc(), sp);
         break;
       case 0x09:  // ADD HL, BC
-        set_hl(add_half(hl(), bc()));
+        add_half(bc());
         break;
       case 0x0A:  // LD A, (BC)
         a = memory.read_byte(bc());
@@ -414,7 +413,7 @@ struct Cpu {
         jr(true);
         break;
       case 0x19:  // ADD HL, DE
-        set_hl(add_half(hl(), de()));
+        add_half(de());
         break;
       case 0x1A:  // LD A, (DE)
         a = memory.read_byte(de());
@@ -460,37 +459,33 @@ struct Cpu {
         h = read_byte_pc();
         break;
       case 0x27: {  // DAA
-        // Todo: this is probably wrong because of signedness
-        auto value = a;
         if (fn()) {
           if (fh()) {
-            value = (value - 0x06) & 0xFF;
+            a = (a - 0x06) & 0x00FF;
           }
           if (fc()) {
-            value = (value - 0x60) & 0xFFFF;
+            a = (a - 0x60) & 0xFFFF;
           }
         } else {
-          if (fh() || (value & 0x0F) > 9) {
-            value = (value + 0x06) & 0xFFFF;
+          if (fh() || (a & 0x000F) > 0x09) {
+            a = (a + 0x06) & 0xFFFF;
           }
-          if (fc() || value > 0x9F) {
-            value = (value + 0x60) & 0xFFFF;
+          if (fc() || (a & 0xFFFF) > 0x9F) {
+            a = (a + 0x60) & 0xFFFF;
           }
         }
-
-        if ((value & 0x100) == 0x100) {
+        if ((a & 0x100) == 0x100) {
           set_f(null, null, null, 1);
         }
-
-        a = value & 0xFF;
-        set_f((value & 0xFF) == 0, null, 0, null);
+        a = a & 0xFF;
+        set_f(a == 0, null, 0, null);
         break;
       }
       case 0x28:  // JR Z, s8
         jr(fz());
         break;
       case 0x29:  // ADD HL, HL
-        set_hl(add_half(hl(), hl()));
+        add_half(hl());
         break;
       case 0x2A:  // LD A, (HL+)
         a = memory.read_byte(hl());
@@ -541,7 +536,7 @@ struct Cpu {
         jr(fc());
         break;
       case 0x39:  // ADD HL, SP
-        set_hl(add_half(hl(), sp));
+        add_half(sp);
         break;
       case 0x3A:  // LD A, (HL-)
         a = memory.read_byte(hl());
@@ -1111,7 +1106,7 @@ struct Cpu {
   }
 
   void prefix() {
-    dzint opcode = read_byte_pc();
+    auto opcode = read_byte_pc();
 
     dzint operand;
     switch (opcode & 0x7) {
@@ -1141,7 +1136,7 @@ struct Cpu {
         break;
     }
 
-    dzbool writeback = true;
+    auto writeback = true;
     if (opcode <= 0x07) {  // RLC operand
       operand = ((operand << 1) | (operand >> 7)) & 0xFF;
       set_f(operand == 0, 0, 0, operand & 0x1);
@@ -1157,20 +1152,20 @@ struct Cpu {
       operand = (operand | (fc() << 8)) >> 1;
       set_f(operand == 0, 0, 0, carry);
     } else if (opcode <= 0x27) {  // SLA operand
-      auto value = operand;
+      auto carry = operand >> 7;
       operand = (operand << 1) & 0xFF;
-      set_f(operand == 0, 0, 0, value >> 7);
+      set_f(operand == 0, 0, 0, carry);
     } else if (opcode <= 0x2F) {  // SRA operand
-      auto value = operand;
+      auto carry = operand & 0x1;
       operand = (operand & 0x80) | (operand >> 1);
-      set_f(operand == 0, 0, 0, value & 0x1);
+      set_f(operand == 0, 0, 0, carry);
     } else if (opcode <= 0x37) {  // SWAP operand
       operand = ((operand & 0x0F) << 4) | ((operand & 0xF0) >> 4);
       set_f(operand == 0, 0, 0, 0);
     } else if (opcode <= 0x3F) {  // SRL operand
-      auto value = operand;
+      auto carry = operand & 0x1;
       operand = operand >> 1;
-      set_f(operand == 0, 0, 0, value & 0x1);
+      set_f(operand == 0, 0, 0, carry);
     } else if (opcode <= 0x7F) {  // BIT n, operand
       auto bit = (opcode - 0x40) >> 3;
       set_f(!(operand & (1LL << bit)), 0, 1, null);
@@ -1218,7 +1213,7 @@ struct GameBoy {
   Cpu cpu;
 };
 
-auto read(const std::filesystem::path& file, dzbytes& dst) {
+auto read(const std::filesystem::path& file, dzbytes& dst) -> bool {
   auto stream = std::ifstream(file, std::ios::binary);
   if (!stream.is_open() || !stream) {
     return false;
@@ -1228,13 +1223,10 @@ auto read(const std::filesystem::path& file, dzbytes& dst) {
   dst.resize(size);
 
   stream.read(reinterpret_cast<char*>(dst.data()), size);
-  if (!stream) {
-    return false;
-  }
-  return true;
+  return static_cast<bool>(stream);
 }
 
-int main(int argc, char* argv[]) {
+auto main(int argc, char* argv[]) -> int {
   GameBoy gb;
 
   if (argc > 1) {
