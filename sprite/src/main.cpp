@@ -5,8 +5,6 @@
 #include <optional>
 #include <vector>
 
-#define null std::nullopt
-
 using dzbool = bool;
 using dzint  = std::int64_t;
 using dzbyte = std::uint8_t;
@@ -15,17 +13,15 @@ template<typename T>
 using dzlist  = std::vector<T>;
 using dzbytes = dzlist<dzbyte>;
 
-constexpr auto noop = 0;
+inline constexpr auto noop = 0;
+inline constexpr auto null = std::nullopt;
 
 struct GameBoy {
   GameBoy() {
-    rom.resize(0x8000, 0);
     vram.resize(0x2000, 0);
-    eram.resize(0x2000, 0);
     wram.resize(0x2000, 0);
-    oam.resize(0x100, 0);
-    io.resize(0x80, 0);
-    hram.resize(0x7F, 0);
+    oram.resize(0x0100, 0);
+    hram.resize(0x007F, 0);
   }
 
   dzint a = 0;
@@ -45,10 +41,8 @@ struct GameBoy {
 
   dzbytes rom;
   dzbytes vram;
-  dzbytes eram;
   dzbytes wram;
-  dzbytes oam;
-  dzbytes io;
+  dzbytes oram;
   dzbytes hram;
 
   auto af() const -> dzint {
@@ -135,31 +129,44 @@ struct GameBoy {
   }
 
   auto read_byte(dzint addr) const -> dzint {
-    if (addr > 0xFFFF) {
-      return 0;
-    } else if (addr >= 0xFFFF) {
-      return ie;
-    } else if (addr >= 0xFF80) {
-      return hram[addr - 0xFF80];
-    } else if (addr >= 0xFF00) {
-      return io[addr - 0xFF00];
-    } else if (addr >= 0xFEA0) {
-      return 0;
-    } else if (addr >= 0xFE00) {
-      return oam[addr - 0xFE00];
-    } else if (addr >= 0xE000) {
-      return wram[addr - 0xE000];
-    } else if (addr >= 0xC000) {
-      return wram[addr - 0xC000];
-    } else if (addr >= 0xA000) {
-      return eram[addr - 0xA000];
-    } else if (addr >= 0x8000) {
-      return vram[addr - 0x8000];
-    } else if (addr >= 0x4000) {
-      return rom[addr];  // Todo: implement, see https://gbdev.io/pandocs/The_Cartridge_Header.html#the-cartridge-header
-    } else {
-      return rom[addr];
+    switch (addr >> 12) {
+      case 0x0:
+      case 0x1:
+      case 0x2:
+      case 0x3:
+        return rom[addr];
+      case 0x4:
+      case 0x5:
+      case 0x6:
+      case 0x7:
+        return rom[addr];  // Todo: implement MBC
+      case 0x8:
+      case 0x9:
+        return vram[addr - 0x8000];
+      case 0xA:
+      case 0xB:
+        return 0xFF;  // Todo: implement ERAM
+      case 0xC:
+      case 0xD:
+      case 0xE:
+        return wram[addr - 0xC000];
+      case 0xF:
+        if (addr <= 0xFDFF) {
+          return wram[addr - 0xC000];
+        } else if (addr <= 0xFE9F) {
+          return oram[addr - 0xFE00];
+        } else if (addr <= 0xFEFF) {
+          return 0xFF;
+        } else if (addr <= 0xFF7F) {
+          return 0x00;  // Todo: implement IO
+        } else if (addr <= 0xFFFE) {
+          return hram[addr - 0xFF80];
+        } else {
+          return ie;
+        }
+        break;
     }
+    return 0xFF;
   }
 
   auto read_half(dzint addr) const -> dzint {
@@ -167,33 +174,47 @@ struct GameBoy {
   }
 
   void write_byte(dzint addr, dzint byte) {
-    if (addr > 0xFFFF) {
-      noop;
-    } else if (addr >= 0xFFFF) {
-      ie = byte;
-    } else if (addr >= 0xFF80) {
-      hram[addr - 0xFF80] = byte;
-    } else if (addr >= 0xFF00) {
-      if ((addr - 0xFF00) == 0x01) {
-        std::printf("%c", (char)byte);
-      }
-      io[addr - 0xFF00] = byte;
-    } else if (addr >= 0xFEA0) {
-      noop;
-    } else if (addr >= 0xFE00) {
-      oam[addr - 0xFE00] = byte;
-    } else if (addr >= 0xE000) {
-      wram[addr - 0xE000] = byte;
-    } else if (addr >= 0xC000) {
-      wram[addr - 0xC000] = byte;
-    } else if (addr >= 0xA000) {
-      eram[addr - 0xA000] = byte;
-    } else if (addr >= 0x8000) {
-      vram[addr - 0x8000] = byte;
-    } else if (addr >= 0x4000) {
-      noop;  // Todo: implement, see https://gbdev.io/pandocs/The_Cartridge_Header.html#the-cartridge-header
-    } else {
-      rom[addr] = byte;
+    switch (addr >> 12) {
+      case 0x0:
+      case 0x1:
+      case 0x2:
+      case 0x3:
+      case 0x4:
+      case 0x5:
+      case 0x6:
+      case 0x7:
+        break;
+      case 0x8:
+      case 0x9:
+        vram[addr - 0x8000] = byte;
+        break;
+      case 0xA:
+      case 0xB:
+        break;  // Todo: implement ERAM
+      case 0xC:
+      case 0xD:
+      case 0xE:
+        wram[addr - 0xC000] = byte;
+        break;
+      case 0xF:
+        if (addr <= 0xFDFF) {
+          wram[addr - 0xC000] = byte;
+        } else if (addr <= 0xFE9F) {
+          oram[addr - 0xFE00] = byte;
+        } else if (addr <= 0xFEFF) {
+          noop;
+        } else if (addr <= 0xFF7F) {
+          // Todo: implement IO
+          addr = addr - 0xFF00;
+          if (addr == 0x01) {
+            std::printf("%c", (char)byte);
+          }
+        } else if (addr <= 0xFFFE) {
+          hram[addr - 0xFF80] = byte;
+        } else {
+          ie = byte;
+        }
+        break;
     }
   }
 
@@ -209,7 +230,7 @@ struct GameBoy {
   }
 
   auto read_signed_byte_pc() -> dzint {
-    return read_byte_pc() << 56 >> 56;
+    return (read_byte_pc() << 56) >> 56;
   }
 
   auto read_half_pc() -> dzint {
@@ -1207,7 +1228,9 @@ struct GameBoy {
   }
 
   auto run(const dzbytes& rom) -> dzint {
+    // Todo: check MBC sizes here
     this->rom = rom;
+    this->rom.resize(0x8000, 0);
     while (true) {
       step_cpu();
     }
