@@ -1,3 +1,5 @@
+var ascii = "                                 !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ "
+
 var opcode_cycles = [
   0x04, 0x0C, 0x08, 0x08, 0x04, 0x04, 0x08, 0x04, 0x14, 0x08, 0x08, 0x08, 0x04, 0x04, 0x08, 0x04,
   0x04, 0x0C, 0x08, 0x08, 0x04, 0x04, 0x08, 0x04, 0x0C, 0x08, 0x08, 0x08, 0x04, 0x04, 0x08, 0x04,
@@ -72,7 +74,7 @@ class GameBoy:
     this.a = (value >> 8) & 0xFF
 
   def bc():
-    return this.c | (this.b >> 8)
+    return this.c | (this.b << 8)
 
   def set_bc(value):
     this.c = value & 0xFF
@@ -207,13 +209,13 @@ class GameBoy:
     return this.read_byte(addr) | (this.read_byte(addr + 1) << 8)
 
   def write_byte_io(addr, byte):
-    print("IO", addr, byte)
     switch addr:
       case 0x00:
         this.joyp = byte & 0x30
         return
       case 0x01:
-        print(byte)
+        if byte < ascii.size():
+          print(ascii[byte])
       case 0x04:
         this.div = byte
         return
@@ -478,9 +480,9 @@ class GameBoy:
       case 0x1E:  # LD E, u8
         this.e = this.read_byte_pc()
       case 0x1F:  # RRA
-        a = a | (fc() << 8)
-        set_f(0, 0, 0, a & 0x1)
-        a = a >> 1
+        this.a = this.a | (this.fc() << 8)
+        this.set_f(0, 0, 0, this.a & 0x1)
+        this.a = this.a >> 1
       case 0x20:  # JR NZ, s8
         this.jr(!this.fz())
       case 0x21:  # LD HL, u16
@@ -1023,21 +1025,20 @@ class GameBoy:
     # Todo: check MBC sizes
     this.rom = rom
     this.rom.resize(0x8000, 0)
-    var i = 0
     while true:
       this.step_cpu()
-      i = i + 1
-      if i % 10000 == 0:
-        print(i)
 
-var args = arguments()
-if args.size() < 3:
-  print("cannot run without rom")
-  return
-  
-var rom = read_bin(args[2])
-if rom == null:
-  print("cannot read", args[2])
-  return
-  
-GameBoy().run(rom)
+def main():
+  var args = arguments()
+  if args.size() < 3:
+    print("cannot run without rom")
+    return
+    
+  var rom = read_bin(args[2])
+  if rom == null:
+    print("cannot read", args[2])
+    return
+    
+  GameBoy().run(rom)
+
+main()
