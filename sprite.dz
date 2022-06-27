@@ -966,7 +966,7 @@ class GameBoy:
       operand = ((operand << 1) | (operand >> 7)) & 0xFF
       this.set_f(operand == 0, 0, 0, operand & 0x1)
     elif opcode <= 0x0F:  # RRC
-      set_f(operand == 0, 0, 0, operand & 0x1)
+      this.set_f(operand == 0, 0, 0, operand & 0x1)
       operand = ((operand >> 1) | (operand << 7)) & 0xFF
     elif opcode <= 0x17:  # RL
       var carry = operand >> 7
@@ -983,7 +983,7 @@ class GameBoy:
     elif opcode <= 0x2F:  # SRA
       var carry = operand & 0x1
       operand = (operand & 0x80) | (operand >> 1)
-      set_f(operand == 0, 0, 0, carry)
+      this.set_f(operand == 0, 0, 0, carry)
     elif opcode <= 0x37:  # SWAP
       operand = ((operand & 0x0F) << 4) | ((operand & 0xF0) >> 4)
       this.set_f(operand == 0, 0, 0, 0)
