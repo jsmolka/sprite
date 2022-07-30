@@ -72,6 +72,7 @@ struct GameBoy {
   dzint tima = 0;
   dzint tma  = 0;
   dzint tac  = 0;
+  dzint if_  = 0;
   dzint lcdc = 0;
   dzint stat = 0;
   dzint scx  = 0;
@@ -179,6 +180,8 @@ struct GameBoy {
         return tma;
       case 0x07:
         return tac;
+      case 0x0F:
+        return if_;
       case 0x40:
         return lcdc;
       case 0x41:
@@ -269,6 +272,9 @@ struct GameBoy {
         return;
       case 0x07:
         tac = byte & 0x07;
+        return;
+      case 0x0F:
+        if_ = byte & 0x1F;
         return;
       case 0x40:
         lcdc = byte;
