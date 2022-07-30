@@ -484,6 +484,7 @@ struct GameBoy {
   }
 
   void rst(dzint addr) {
+    ime = 0;
     push(pc);
     pc = addr;
   }
@@ -1228,7 +1229,7 @@ struct GameBoy {
         a = read_byte(0xFF00 | c);
         break;
       case 0xF3:  // DI
-        ime = false;
+        ime = 0;
         break;
       case 0xF5:  // PUSH AF
         push(af());
@@ -1253,7 +1254,7 @@ struct GameBoy {
         a = read_byte(read_half_pc());
         break;
       case 0xFB:  // EI
-        ime = true;
+        ime = 1;
         break;
       case 0xFE:  // CP A, u8
         cp(read_byte_pc());
@@ -1369,12 +1370,27 @@ struct GameBoy {
     }
   }
 
+  void serve_interrupts() {
+    dzint servable = ie & if_;
+    if (ime && servable) {
+      for (dzint x = 0; x < 5; ++x) {
+        dzint mask = 1ULL << x;
+        if (servable & mask) {
+          if_ = if_ & ~mask;
+          rst(0x40 + 8 * x);
+          break;
+        }
+      }
+    }
+  }
+
   auto run(const dzbytes& rom) -> dzint {
     // Todo: check MBC sizes
     this->rom = rom;
     this->rom.resize(0x8000, 0);
     while (true) {
       step_cpu();
+      serve_interrupts();
     }
     return 0;
   }
