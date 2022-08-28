@@ -7,11 +7,10 @@
 
 using dzbool = bool;
 using dzint  = std::int64_t;
-using dzbyte = std::uint8_t;
 
 template<typename T>
 using dzlist  = std::vector<T>;
-using dzbytes = dzlist<dzbyte>;
+using dzbytes = dzlist<std::uint8_t>;
 
 inline constexpr auto noop = 0;
 inline constexpr auto null = std::nullopt;
@@ -53,12 +52,11 @@ struct GameBoy {
   dzint h = 0;
   dzint l = 0;
 
-  dzint cycles = 0;
-  dzint pc     = 0x0100;
-  dzint sp     = 0xFFFE;
-  dzint halt   = 0;
-  dzint ie     = 0;
-  dzint ime    = 1;
+  dzint pc   = 0x0100;
+  dzint sp   = 0xFFFE;
+  dzint halt = 0;
+  dzint ie   = 0;
+  dzint ime  = 1;
 
   dzbytes rom;
   dzbytes vram;
@@ -249,8 +247,24 @@ struct GameBoy {
     return 0xFF;
   }
 
+  auto read_byte_pc() -> dzint {
+    auto value = read_byte(pc);
+    pc = (pc + 1) & 0xFFFF;
+    return value;
+  }
+
+  auto read_signed_byte_pc() -> dzint {
+    return (read_byte_pc() << 56) >> 56;
+  }
+
   auto read_half(dzint addr) const -> dzint {
     return read_byte(addr) | (read_byte(addr + 1) << 8);
+  }
+
+  auto read_half_pc() -> dzint {
+    auto value = read_half(pc);
+    pc = (pc + 2) & 0xFFFF;
+    return value;
   }
 
   void write_byte_io(dzint addr, dzint byte) {
@@ -358,22 +372,6 @@ struct GameBoy {
     write_byte(addr + 1, (half >> 8) & 0xFF);
   }
 
-  auto read_byte_pc() -> dzint {
-    auto value = read_byte(pc);
-    pc = (pc + 1) & 0xFFFF;
-    return value;
-  }
-
-  auto read_signed_byte_pc() -> dzint {
-    return (read_byte_pc() << 56) >> 56;
-  }
-
-  auto read_half_pc() -> dzint {
-    auto value = read_half(pc);
-    pc = (pc + 2) & 0xFFFF;
-    return value;
-  }
-
   auto inc(dzint value) -> dzint {
     value = (value + 1) & 0xFF;
     set_f(value == 0, 0, (value & 0x0F) == 0x00, null);
@@ -439,7 +437,7 @@ struct GameBoy {
   void jp(dzbool condition) {
     if (condition) {
       pc = read_half_pc();
-      cycles = cycles + 4;
+      tick(4);
     } else {
       pc = (pc + 2) & 0xFFFF;
     }
@@ -449,7 +447,7 @@ struct GameBoy {
     dzint offset = 1;
     if (condition) {
       offset = read_signed_byte_pc();
-      cycles = cycles + 4;
+      tick(4);
     }
     pc = (pc + offset) & 0xFFFF;
   }
@@ -470,7 +468,7 @@ struct GameBoy {
       auto addr = read_half_pc();
       push(pc);
       pc = addr;
-      cycles = cycles + 12;
+      tick(12);
     } else {
       pc = (pc + 2) & 0xFFFF;
     }
@@ -479,7 +477,7 @@ struct GameBoy {
   void ret(dzbool condition) {
     if (condition) {
       pc = pop();
-      cycles = cycles + 12;
+      tick(12);
     }
   }
 
@@ -489,9 +487,32 @@ struct GameBoy {
     pc = addr;
   }
 
-  auto step_cpu() -> dzint {
+  void daa() {
+    if (fn()) {
+      if (fh()) {
+        a = (a - 0x06) & 0x00FF;
+      }
+      if (fc()) {
+        a = (a - 0x60) & 0xFFFF;
+      }
+    } else {
+      if (fh() || (a & 0x000F) > 0x09) {
+        a = (a + 0x06) & 0xFFFF;
+      }
+      if (fc() || (a & 0xFFFF) > 0x9F) {
+        a = (a + 0x60) & 0xFFFF;
+      }
+    }
+    if ((a & 0x100) == 0x100) {
+      set_f(null, null, null, 1);
+    }
+    a = a & 0xFF;
+    set_f(a == 0, null, 0, null);
+  }
+
+  void step_cpu() {
     auto opcode = read_byte_pc();
-    cycles = opcode_cycles[opcode];
+    tick(opcode_cycles[opcode]);
     switch (opcode) {
       case 0x00:  // NOP
         break;
@@ -618,29 +639,9 @@ struct GameBoy {
       case 0x26:  // LD H, u8
         h = read_byte_pc();
         break;
-      case 0x27: {  // DAA
-        if (fn()) {
-          if (fh()) {
-            a = (a - 0x06) & 0x00FF;
-          }
-          if (fc()) {
-            a = (a - 0x60) & 0xFFFF;
-          }
-        } else {
-          if (fh() || (a & 0x000F) > 0x09) {
-            a = (a + 0x06) & 0xFFFF;
-          }
-          if (fc() || (a & 0xFFFF) > 0x9F) {
-            a = (a + 0x60) & 0xFFFF;
-          }
-        }
-        if ((a & 0x100) == 0x100) {
-          set_f(null, null, null, 1);
-        }
-        a = a & 0xFF;
-        set_f(a == 0, null, 0, null);
+      case 0x27:  // DAA
+        daa();
         break;
-      }
       case 0x28:  // JR Z, s8
         jr(fz());
         break;
@@ -1168,7 +1169,7 @@ struct GameBoy {
         break;
       case 0xD9:  // RETI
         pc = pop();
-        ime = true;
+        ime = 1;
         break;
       case 0xDA:  // JP C, u16
         jp(fc());
@@ -1263,7 +1264,6 @@ struct GameBoy {
         rst(0x38);
         break;
     }
-    return cycles;
   }
 
   void prefix() {
@@ -1291,7 +1291,7 @@ struct GameBoy {
         break;
       case 0x6:
         operand = read_byte(hl());
-        cycles = cycles + 8;
+        tick(8);
         break;
       default:
         operand = a;
@@ -1370,7 +1370,7 @@ struct GameBoy {
     }
   }
 
-  void serve_interrupts() {
+  void step_irq() {
     dzint servable = ie & if_;
     if (ime && servable) {
       for (dzint x = 0; x < 5; ++x) {
@@ -1384,13 +1384,17 @@ struct GameBoy {
     }
   }
 
+  void tick(dzint cycles) {
+
+  }
+
   auto run(const dzbytes& rom) -> dzint {
     // Todo: check MBC sizes
     this->rom = rom;
     this->rom.resize(0x8000, 0);
     while (true) {
       step_cpu();
-      serve_interrupts();
+      step_irq();
     }
     return 0;
   }
