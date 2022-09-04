@@ -83,6 +83,8 @@ struct GameBoy {
   dzint wx   = 0;
   dzint wy   = 0;
 
+  dzint cycles_timer = 0;
+
   auto af() const -> dzint {
     return f | (a << 8);
   }
@@ -276,7 +278,7 @@ struct GameBoy {
         std::printf("%c", (char)byte);
         break;
       case 0x04:
-        div = byte;
+        div = 0;
         return;
       case 0x05:
         tima = byte;
@@ -361,7 +363,7 @@ struct GameBoy {
         } else if (addr <= 0xFFFE) {
           hram[addr - 0xFF80] = byte;
         } else {
-          ie = byte;
+          ie = byte & 0x1F;
         }
         break;
     }
@@ -1384,8 +1386,31 @@ struct GameBoy {
     }
   }
 
-  void tick(dzint cycles) {
+  void tick_timer(dzint cycles) {
+    if (tac & 0b100) {
+      dzint freq = 1;
+      switch (tac & 0b11) {
+        case 0b00: freq = 1024; break;
+        case 0b01: freq =   16; break;
+        case 0b10: freq =   64; break;
+        case 0b11: freq =  256; break;
+      }
 
+      cycles_timer = cycles_timer + cycles;
+      while (cycles_timer >= freq) {
+        tima = tima + 1;
+        if (tima == 0x100) {
+          tima = tma;
+          if_ = if_ | 1ull << 2;
+        }
+        cycles_timer = cycles_timer - freq;
+      }
+    }
+    div = (div + cycles) & 0xFF;
+  }
+
+  void tick(dzint cycles) {
+    tick_timer(cycles);
   }
 
   auto run(const dzbytes& rom) -> dzint {
