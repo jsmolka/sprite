@@ -83,6 +83,7 @@ struct GameBoy {
   dzint wx   = 0;
   dzint wy   = 0;
 
+  dzint div_cycles  = 0;
   dzint tima_cycles = 0;
 
   auto af() const -> dzint {
@@ -1414,7 +1415,12 @@ struct GameBoy {
         tima_cycles = tima_cycles - freq;
       }
     }
-    div = (div + cycles) & 0xFF;
+
+    div_cycles = div_cycles + cycles;
+    while (div_cycles >= 256) {
+      div = (div + 1) & 0xFF;
+      div_cycles = div_cycles - 256;
+    }
   }
 
   void tick(dzint cycles) {
