@@ -513,6 +513,11 @@ struct GameBoy {
   }
 
   void step_cpu() {
+    if (halt) {
+      tick(opcode_cycles[0]);
+      return;
+    }
+
     auto opcode = read_byte_pc();
     tick(opcode_cycles[opcode]);
     switch (opcode) {
@@ -1374,13 +1379,16 @@ struct GameBoy {
 
   void step_irq() {
     dzint servable = ie & if_;
-    if (ime && servable) {
-      for (dzint x = 0; x < 5; ++x) {
-        dzint mask = 1ULL << x;
-        if (servable & mask) {
-          if_ = if_ & ~mask;
-          rst(0x40 + 8 * x);
-          break;
+    if (servable) {
+      halt = false;
+      if (ime) {
+        for (dzint x = 0; x < 5; ++x) {
+          dzint mask = 1ULL << x;
+          if (servable & mask) {
+            if_ = if_ & ~mask;
+            rst(0x40 + 8 * x);
+            break;
+          }
         }
       }
     }
