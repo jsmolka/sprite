@@ -6,32 +6,32 @@
 #include <vector>
 
 using dzbool = bool;
-using dzint  = std::int64_t;
+using dzint = std::int64_t;
 
 template<typename T>
-using dzlist  = std::vector<T>;
+using dzlist = std::vector<T>;
 using dzbytes = dzlist<std::uint8_t>;
 
 inline constexpr auto noop = 0;
 inline constexpr auto null = std::nullopt;
 
 static constexpr dzint opcode_cycles[] = {
-  0x04, 0x0C, 0x08, 0x08, 0x04, 0x04, 0x08, 0x04, 0x14, 0x08, 0x08, 0x08, 0x04, 0x04, 0x08, 0x04,
-  0x04, 0x0C, 0x08, 0x08, 0x04, 0x04, 0x08, 0x04, 0x0C, 0x08, 0x08, 0x08, 0x04, 0x04, 0x08, 0x04,
-  0x08, 0x0C, 0x08, 0x08, 0x04, 0x04, 0x08, 0x04, 0x08, 0x08, 0x08, 0x08, 0x04, 0x04, 0x08, 0x04,
-  0x08, 0x0C, 0x08, 0x08, 0x0C, 0x0C, 0x0C, 0x04, 0x08, 0x08, 0x08, 0x08, 0x04, 0x04, 0x08, 0x04,
-  0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x08, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x08, 0x04,
-  0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x08, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x08, 0x04,
-  0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x08, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x08, 0x04,
-  0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x04, 0x08, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x08, 0x04,
-  0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x08, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x08, 0x04,
-  0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x08, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x08, 0x04,
-  0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x08, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x08, 0x04,
-  0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x08, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x08, 0x04,
-  0x08, 0x0C, 0x0C, 0x10, 0x0C, 0x10, 0x08, 0x10, 0x08, 0x10, 0x0C, 0x08, 0x0C, 0x18, 0x08, 0x10,
-  0x08, 0x0C, 0x0C, 0x00, 0x0C, 0x10, 0x08, 0x10, 0x08, 0x10, 0x0C, 0x00, 0x0C, 0x00, 0x08, 0x10,
-  0x0C, 0x0C, 0x08, 0x00, 0x00, 0x10, 0x08, 0x10, 0x10, 0x04, 0x10, 0x00, 0x00, 0x00, 0x08, 0x10,
-  0x0C, 0x0C, 0x08, 0x04, 0x00, 0x10, 0x08, 0x10, 0x0C, 0x08, 0x10, 0x04, 0x00, 0x00, 0x08, 0x10
+  4,12, 8, 8, 4, 4, 8, 4,20, 8, 8, 8, 4, 4, 8, 4,
+  4,12, 8, 8, 4, 4, 8, 4,12, 8, 8, 8, 4, 4, 8, 4,
+  8,12, 8, 8, 4, 4, 8, 4, 8, 8, 8, 8, 4, 4, 8, 4,
+  8,12, 8, 8,12,12,12, 4, 8, 8, 8, 8, 4, 4, 8, 4,
+  4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4,
+  4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4,
+  4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4,
+  8, 8, 8, 8, 8, 8, 4, 8, 4, 4, 4, 4, 4, 4, 8, 4,
+  4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4,
+  4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4,
+  4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4,
+  4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4,
+  8,12,12,16,12,16, 8,16, 8,16,12, 8,12,24, 8,16,
+  8,12,12, 0,12,16, 8,16, 8,16,12, 0,12, 0, 8,16,
+  12,12,8, 0, 0,16, 8,16,16, 4,16, 0, 0, 0, 8,16,
+  12,12,8, 4, 0,16, 8,16,12, 8,16, 4, 0, 0, 8,16
 };
 
 struct GameBoy {
@@ -52,11 +52,11 @@ struct GameBoy {
   dzint h = 0;
   dzint l = 0;
 
-  dzint pc   = 0x0100;
-  dzint sp   = 0xFFFE;
+  dzint pc = 0x0100;
+  dzint sp = 0xFFFE;
   dzint halt = 0;
-  dzint ie   = 0;
-  dzint ime  = 1;
+  dzint ie = 0;
+  dzint ime = 1;
 
   dzbytes rom;
   dzbytes vram;
@@ -66,25 +66,24 @@ struct GameBoy {
   dzbytes hram;
 
   dzint joyp = 0;
-  dzint div  = 0;
+  dzint div = 0;
+  dzint div_cycles  = 0;
   dzint tima = 0;
-  dzint tma  = 0;
-  dzint tac  = 0;
-  dzint if_  = 0;
+  dzint tima_cycles = 0;
+  dzint tma = 0;
+  dzint tac = 0;
+  dzint if_ = 0;
   dzint lcdc = 0;
   dzint stat = 0;
-  dzint scx  = 0;
-  dzint scy  = 0;
-  dzint ly   = 0;
-  dzint lyc  = 0;
-  dzint bgp  = 0;
+  dzint scx = 0;
+  dzint scy = 0;
+  dzint ly = 0;
+  dzint lyc = 0;
+  dzint bgp = 0;
   dzint obp0 = 0;
   dzint obp1 = 0;
-  dzint wx   = 0;
-  dzint wy   = 0;
-
-  dzint div_cycles  = 0;
-  dzint tima_cycles = 0;
+  dzint wx = 0;
+  dzint wy = 0;
 
   auto af() const -> dzint {
     return f | (a << 8);
@@ -291,13 +290,13 @@ struct GameBoy {
         tac = byte;
         return;
       case 0x0F:
-        if_ = byte | 0b1110'0000;
+        if_ = byte;
         return;
       case 0x40:
         lcdc = byte;
         return;
       case 0x41:
-        stat = byte & 0b0111'1000;
+        stat = byte;
         return;
       case 0x42:
         scy = byte;
@@ -447,7 +446,7 @@ struct GameBoy {
   }
 
   void jr(dzbool condition) {
-    dzint offset = 1;
+    auto offset = 1;
     if (condition) {
       offset = read_signed_byte_pc();
       tick(4);
@@ -492,19 +491,11 @@ struct GameBoy {
 
   void daa() {
     if (fn()) {
-      if (fh()) {
-        a = (a - 0x06) & 0x00FF;
-      }
-      if (fc()) {
-        a = (a - 0x60) & 0xFFFF;
-      }
+      if (fh()) a = (a - 0x06) & 0x00FF;
+      if (fc()) a = (a - 0x60) & 0xFFFF;
     } else {
-      if (fh() || (a & 0x000F) > 0x09) {
-        a = (a + 0x06) & 0xFFFF;
-      }
-      if (fc() || (a & 0xFFFF) > 0x9F) {
-        a = (a + 0x60) & 0xFFFF;
-      }
+      if (fh() || (a & 0x000F) > 0x09) a = (a + 0x06) & 0xFFFF;
+      if (fc() || (a & 0xFFFF) > 0x9F) a = (a + 0x60) & 0xFFFF;
     }
     if ((a & 0x100) == 0x100) {
       set_f(null, null, null, 1);
@@ -513,14 +504,13 @@ struct GameBoy {
     set_f(a == 0, null, 0, null);
   }
 
-  void step_cpu() {
+  void cpu() {
     if (halt) {
       tick(opcode_cycles[0]);
       return;
     }
 
     auto opcode = read_byte_pc();
-    tick(opcode_cycles[opcode]);
     switch (opcode) {
       case 0x00:  // NOP
         break;
@@ -1272,6 +1262,7 @@ struct GameBoy {
         rst(0x38);
         break;
     }
+    tick(opcode_cycles[opcode]);
   }
 
   void prefix() {
@@ -1378,16 +1369,16 @@ struct GameBoy {
     }
   }
 
-  void step_irq() {
+  void irq() {
     dzint servable = ie & if_;
     if (servable) {
-      halt = false;
+      halt = 0;
       if (ime) {
-        for (dzint x = 0; x < 5; ++x) {
-          dzint mask = 1ULL << x;
+        for (dzint bit = 0; bit < 5; ++bit) {
+          dzint mask = 1ULL << bit;
           if (servable & mask) {
             if_ = if_ & ~mask;
-            rst(0x40 + 8 * x);
+            rst(0x40 + 8 * bit);
             break;
           }
         }
@@ -1395,7 +1386,9 @@ struct GameBoy {
     }
   }
 
-  void tick_timer(dzint cycles) {
+  void tick(dzint cycles) {
+    constexpr auto kDiv = 256;
+
     if (tac & 0b100) {
       dzint freq = 1;
       switch (tac & 0b11) {
@@ -1408,32 +1401,29 @@ struct GameBoy {
       tima_cycles = tima_cycles + cycles;
       while (tima_cycles >= freq) {
         tima = tima + 1;
+        tima_cycles = tima_cycles - freq;
+
         if (tima == 0x100) {
           tima = tma;
-          if_ = if_ | 1ull << 2;
+          if_ = if_ | (1ULL << 2);
         }
-        tima_cycles = tima_cycles - freq;
       }
     }
 
     div_cycles = div_cycles + cycles;
-    while (div_cycles >= 256) {
+    while (div_cycles >= kDiv) {
       div = (div + 1) & 0xFF;
-      div_cycles = div_cycles - 256;
+      div_cycles = div_cycles - kDiv;
     }
   }
 
-  void tick(dzint cycles) {
-    tick_timer(cycles);
-  }
-
   auto run(const dzbytes& rom) -> dzint {
-    // Todo: check MBC sizes
     this->rom = rom;
     this->rom.resize(0x8000, 0);
+
     while (true) {
-      step_cpu();
-      step_irq();
+      cpu();
+      irq();
     }
     return 0;
   }
