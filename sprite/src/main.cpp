@@ -83,7 +83,7 @@ struct GameBoy {
   dzint wx   = 0;
   dzint wy   = 0;
 
-  dzint cycles_timer = 0;
+  dzint tima_cycles = 0;
 
   auto af() const -> dzint {
     return f | (a << 8);
@@ -272,7 +272,7 @@ struct GameBoy {
   void write_byte_io(dzint addr, dzint byte) {
     switch (addr) {
       case 0x00:
-        joyp = byte & 0x30;
+        joyp = byte;
         return;
       case 0x01:
         std::printf("%c", (char)byte);
@@ -287,16 +287,16 @@ struct GameBoy {
         tma = byte;
         return;
       case 0x07:
-        tac = byte & 0x07;
+        tac = byte;
         return;
       case 0x0F:
-        if_ = byte & 0x1F;
+        if_ = byte | 0b1110'0000;
         return;
       case 0x40:
         lcdc = byte;
         return;
       case 0x41:
-        stat = byte & 0xF7;
+        stat = byte & 0b0111'1000;
         return;
       case 0x42:
         scy = byte;
@@ -1404,14 +1404,14 @@ struct GameBoy {
         case 0b11: freq =  256; break;
       }
 
-      cycles_timer = cycles_timer + cycles;
-      while (cycles_timer >= freq) {
+      tima_cycles = tima_cycles + cycles;
+      while (tima_cycles >= freq) {
         tima = tima + 1;
         if (tima == 0x100) {
           tima = tma;
           if_ = if_ | 1ull << 2;
         }
-        cycles_timer = cycles_timer - freq;
+        tima_cycles = tima_cycles - freq;
       }
     }
     div = (div + cycles) & 0xFF;
