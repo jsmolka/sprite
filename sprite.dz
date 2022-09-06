@@ -30,7 +30,6 @@ class GameBoy:
     this.h = 0
     this.l = 0
 
-    this.cycles = 0
     this.pc = 0x0100
     this.sp = 0xFFFE
     this.halt = false
@@ -51,9 +50,12 @@ class GameBoy:
 
     this.joyp = 0
     this.div = 0
+    this.div_cycles = 0
     this.tima = 0
+    this.tima_cycles = 0
     this.tma = 0
     this.tac = 0
+    this.if_ = 0
     this.lcdc = 0
     this.stat = 0
     this.scx = 0
@@ -142,6 +144,8 @@ class GameBoy:
         return this.tma
       case 0x07:
         return this.tac
+      case 0x0F:
+        return this.if_
       case 0x40:
         return this.lcdc
       case 0x41:
@@ -201,23 +205,35 @@ class GameBoy:
         elif addr <= 0xFFFE:
           return this.hram[addr - 0xFF80]
         else:
-          return ie
+          return this.ie
 
     return 0xFF
+
+  def read_byte_pc():
+    var value = this.read_byte(this.pc)
+    this.pc = (this.pc + 1) & 0xFFFF
+    return value
+
+  def read_signed_byte_pc():
+    return (this.read_byte_pc() << 56) >> 56
 
   def read_half(addr):
     return this.read_byte(addr) | (this.read_byte(addr + 1) << 8)
 
+  def read_half_pc():
+    var value = this.read_half(this.pc)
+    this.pc = (this.pc + 2) & 0xFFFF
+    return value
+
   def write_byte_io(addr, byte):
     switch addr:
       case 0x00:
-        this.joyp = byte & 0x30
+        this.joyp = byte
         return
       case 0x01:
-        if byte < ascii.size():
-          print(ascii[byte])
+        print(ascii[byte])
       case 0x04:
-        this.div = byte
+        this.div = 0
         return
       case 0x05:
         this.tima = byte
@@ -226,13 +242,16 @@ class GameBoy:
         this.tma = byte
         return
       case 0x07:
-        this.tac = byte & 0x07
+        this.tac = byte
+        return
+      case 0x0F:
+        this.if_ = byte
         return
       case 0x40:
         this.lcdc = byte
         return
       case 0x41:
-        this.stat = byte & 0xF7
+        this.stat = byte
         return
       case 0x42:
         this.scy = byte
@@ -296,24 +315,11 @@ class GameBoy:
         elif addr <= 0xFFFE:
           this.hram[addr - 0xFF80] = byte
         else:
-          ie = byte
+          this.ie = byte & 0x1F
 
   def write_half(addr, half):
     this.write_byte(addr, half & 0xFF)
     this.write_byte(addr + 1, (half >> 8) & 0xFF)
-
-  def read_byte_pc():
-    var value = this.read_byte(this.pc)
-    this.pc = (this.pc + 1) & 0xFFFF
-    return value
-
-  def read_signed_byte_pc():
-    return (this.read_byte_pc() << 56) >> 56
-
-  def read_half_pc():
-    var value = this.read_half(this.pc)
-    this.pc = (this.pc + 2) & 0xFFFF
-    return value
 
   def inc(value):
     value = (value + 1) & 0xFF
@@ -369,7 +375,7 @@ class GameBoy:
   def jp(condition):
     if condition:
       this.pc = this.read_half_pc()
-      this.cycles = this.cycles + 4
+      this.tick(4)
     else:
       this.pc = (this.pc + 2) & 0xFFFF
 
@@ -377,7 +383,7 @@ class GameBoy:
     var offset = 1
     if condition:
       offset = this.read_signed_byte_pc()
-      this.cycles = this.cycles + 4
+      this.tick(4)
     this.pc = (this.pc + offset) & 0xFFFF
 
   def push(value):
@@ -394,22 +400,42 @@ class GameBoy:
       var addr = this.read_half_pc()
       this.push(this.pc)
       this.pc = addr
-      this.cycles = this.cycles + 12
+      this.tick(12)
     else:
       this.pc = (this.pc + 2) & 0xFFFF
 
   def ret(condition):
     if condition:
       this.pc = this.pop()
-      this.cycles = this.cycles + 12
+      this.tick(12)
 
   def rst(addr):
+    this.ime = 0
     this.push(this.pc)
     this.pc = addr
 
-  def step_cpu():
+  def daa():
+    if this.fn():
+      if this.fh():
+        this.a = (this.a - 0x06) & 0x00FF
+      if this.fc():
+        this.a = (this.a - 0x60) & 0xFFFF
+    else:
+      if this.fh() || (this.a & 0x000F) > 0x09:
+        this.a = (this.a + 0x06) & 0xFFFF
+      if this.fc() || (this.a & 0xFFFF) > 0x9F:
+        this.a = (this.a + 0x60) & 0xFFFF
+    if (this.a & 0x100) == 0x100:
+      this.set_f(null, null, null, 1)
+    this.a = this.a & 0xFF
+    this.set_f(this.a == 0, null, 0, null)
+
+  def cpu():
+    if this.halt:
+      this.tick(opcode_cycles[0])
+      return
+
     var opcode = this.read_byte_pc()
-    this.cycles = this.cycles + opcode_cycles[opcode]
     switch opcode:
       case 0x00:  # NOP
         noop
@@ -500,20 +526,7 @@ class GameBoy:
       case 0x26:  # LD H, u8
         this.h = this.read_byte_pc()
       case 0x27:  # DAA
-        if this.fn():
-          if this.fh():
-            this.a = (this.a - 0x06) & 0x00FF
-          if this.fc():
-            this.a = (this.a - 0x60) & 0xFFFF
-        else:
-          if this.fh() || (this.a & 0x000F) > 0x09:
-            this.a = (this.a + 0x06) & 0xFFFF
-          if this.fc() || (this.a & 0xFFFF) > 0x9F:
-            this.a = (this.a + 0x60) & 0xFFFF
-        if (this.a & 0x100) == 0x100:
-          this.set_f(null, null, null, 1)
-        this.a = this.a & 0xFF
-        this.set_f(this.a == 0, null, 0, null)
+        this.daa()
       case 0x28:  # JR Z, s8
         this.jr(this.fz())
       case 0x29:  # ADD HL, HL
@@ -913,7 +926,7 @@ class GameBoy:
       case 0xF2:  # LDH A, (C)
         this.a = this.read_byte(0xFF00 | this.c)
       case 0xF3:  # DI
-        this.ime = false
+        this.ime = 0
       case 0xF5:  # PUSH AF
         this.push(this.af())
       case 0xF6:  # OR A, u8
@@ -930,14 +943,13 @@ class GameBoy:
       case 0xFA:  # LD A, (u16)
         this.a = this.read_byte(this.read_half_pc())
       case 0xFB:  # EI
-        this.ime = true
+        this.ime = 1
       case 0xFE:  # CP A, u8
         this.cp(this.read_byte_pc())
       case 0xFF:  # RST 0x38
         this.rst(0x38)
+    this.tick(opcode_cycles[opcode])
 
-    return this.cycles
-    
   def prefix():
     var opcode = this.read_byte_pc()
 
@@ -957,7 +969,7 @@ class GameBoy:
         operand = this.l
       case 0x6:
         operand = this.read_byte(this.hl())
-        this.cycles = this.cycles + 8
+        this.tick(8)
       case 0x7:
         operand = this.a
 
@@ -1020,25 +1032,67 @@ class GameBoy:
           this.write_byte(this.hl(), operand)
         case 0x7:
           this.a = operand
-  
+
+  def irq():
+    var servable = this.ie & this.if_
+    if servable:
+      this.halt = false
+      if this.ime:
+        for bit in 0 .. 5:
+          var mask = 1 << bit
+          if servable & mask:
+            this.if_ = this.if_ & ~mask
+            this.rst(0x40 + 8 * bit)
+            break
+
+  def tick(cycles):
+    var kDiv = 256
+
+    if this.tac & 0b100:
+      var freq
+      switch this.tac & 0b11:
+        case 0b00:
+          freq = 1024
+        case 0b01:
+          freq = 16
+        case 0b10:
+          freq = 64
+        case 0b11:
+          freq = 256
+
+      this.tima_cycles = this.tima_cycles + cycles
+      while this.tima_cycles >= freq:
+        this.tima = this.tima + 1
+        this.tima_cycles = this.tima_cycles - freq
+
+        if this.tima == 0x100:
+          this.tima = this.tima + 1
+          this.if_ = this.if_ | 0x4
+
+    this.div_cycles = this.div_cycles + cycles
+    while this.div_cycles >= kDiv:
+      this.div = (this.div + 1) & 0xFF
+      this.div_cycles = this.div_cycles - kDiv
+
   def run(rom):
-    # Todo: check MBC sizes
     this.rom = rom
     this.rom.resize(0x8000, 0)
+
     while true:
-      this.step_cpu()
+      this.cpu()
+      this.irq()
 
 def main():
   var args = arguments()
   if args.size() < 3:
     print("cannot run without rom")
     return
-    
+
   var rom = read_bin(args[2])
   if rom == null:
     print("cannot read", args[2])
     return
-    
+
   GameBoy().run(rom)
 
 main()
