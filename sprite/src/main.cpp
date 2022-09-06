@@ -1405,7 +1405,7 @@ struct GameBoy {
 
         if (tima == 0x100) {
           tima = tma;
-          if_ = if_ | (1ULL << 2);
+          if_ = if_ | 0x04;
         }
       }
     }
