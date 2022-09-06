@@ -5,6 +5,12 @@
 #include <optional>
 #include <vector>
 
+#if _MSC_VER
+#  include <SDL2/SDL.h>
+#else
+#  include "SDL.h"
+#endif
+
 using dzbool = bool;
 using dzint = std::int64_t;
 
