@@ -1,25 +1,6 @@
-#include <cstdint>
-#include <filesystem>
-#include <fstream>
 #include <iostream>
-#include <optional>
-#include <vector>
 
-#if _MSC_VER
-#  include <SDL2/SDL.h>
-#else
-#  include "SDL.h"
-#endif
-
-using dzbool = bool;
-using dzint = std::int64_t;
-
-template<typename T>
-using dzlist = std::vector<T>;
-using dzbytes = dzlist<std::uint8_t>;
-
-inline constexpr auto noop = 0;
-inline constexpr auto null = std::nullopt;
+#include "dz.h"
 
 static constexpr dzint opcode_cycles[] = {
   0x04, 0x0C, 0x08, 0x08, 0x04, 0x04, 0x08, 0x04, 0x14, 0x08, 0x08, 0x08, 0x04, 0x04, 0x08, 0x04,
@@ -1434,23 +1415,6 @@ struct GameBoy {
     return 0;
   }
 };
-
-auto read_bin(const std::filesystem::path& file) -> std::optional<dzbytes> {
-  auto stream = std::ifstream(file, std::ios::binary);
-  if (!stream.is_open() || !stream) {
-    return std::nullopt;
-  }
-
-  dzbytes bytes;
-  const auto size = std::filesystem::file_size(file);
-  bytes.resize(size);
-
-  stream.read(reinterpret_cast<char*>(bytes.data()), size);
-  if (!stream) {
-    return std::nullopt;
-  }
-  return bytes;
-}
 
 auto main(int argc, char* argv[]) -> int {
   if (argc < 2) {

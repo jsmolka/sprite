@@ -19,6 +19,9 @@
   <ItemGroup>
     <ResourceCompile Include="sprite.rc" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\dz.h" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{c21fc4fd-5afd-42ef-9cdd-148b8b885562}</ProjectGuid>
