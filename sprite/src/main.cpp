@@ -24,16 +24,21 @@ static constexpr dzint kCycles[] = {
 inline constexpr dzint kScreenW = 160;
 inline constexpr dzint kScreenH = 144;
 
+inline constexpr dzint kStatLine   = 1 << 6;
+inline constexpr dzint kStatOam    = 1 << 5;
+inline constexpr dzint kStatVBlank = 1 << 4;
+inline constexpr dzint kStatHBlank = 1 << 3;
+
 inline constexpr dzint kInterruptVBlank = 1 << 0;
-inline constexpr dzint kInterruptStat = 1 << 1;
-inline constexpr dzint kInterruptTimer = 1 << 2;
+inline constexpr dzint kInterruptStat   = 1 << 1;
+inline constexpr dzint kInterruptTimer  = 1 << 2;
 inline constexpr dzint kInterruptSerial = 1 << 3;
 inline constexpr dzint kInterruptJoypad = 1 << 4;
 
-inline constexpr dzint kModeOam = 2;
-inline constexpr dzint kModeVram = 3;
 inline constexpr dzint kModeHBlank = 0;
 inline constexpr dzint kModeVBlank = 1;
+inline constexpr dzint kModeOam    = 2;
+inline constexpr dzint kModeVram   = 3;
 
 class GameBoy {
 public:
@@ -1416,6 +1421,28 @@ public:
     }
   }
 
+  void set_mode(dzint mode) {
+    switch (mode) {
+      case kModeOam:
+        interrupt_stat(kStatOam);
+        break;
+      case kModeHBlank:
+        interrupt_stat(kStatHBlank);
+        break;
+      case kModeVBlank:
+        interrupt_stat(kStatVBlank);
+        break;
+    }
+    gpu_mode = mode;
+  }
+
+  void increment_line() {
+    ly = ly + 1;
+    if (ly == lyc) {
+      interrupt_stat(kStatLine);
+    }
+  }
+
   void tick(dzint cycles) {
     constexpr auto kDiv = 256;
 
@@ -1446,57 +1473,49 @@ public:
       div_cycles = div_cycles - kDiv;
     }
 
-    auto line = ly;
     gpu_cycles = gpu_cycles + cycles;
     switch (gpu_mode) {
-      case kModeOam:
+      case kModeOam: {
         if (gpu_cycles >= 80) {
           gpu_cycles = gpu_cycles - 80;
-          gpu_mode = kModeVram;
+          set_mode(kModeVBlank);
         }
         break;
-
-      case kModeVram:
+      }
+      case kModeVram: {
         if (gpu_cycles >= 172) {
           gpu_cycles = gpu_cycles - 172;
-          gpu_mode = kModeHBlank;
-          interrupt_stat(0b0000'1000);
+          set_mode(kModeHBlank);
           scanline();
         }
         break;
-
-      case kModeHBlank:
+      }
+      case kModeHBlank: {
         if (gpu_cycles >= 204) {
           gpu_cycles = gpu_cycles - 204;
 
-          ly = ly + 1;
+          increment_line();
           if (ly == kScreenH) {
-            gpu_mode = kModeVBlank;
-            interrupt_stat(0b0001'0000);
+            set_mode(kModeVBlank);
             window->render();
           } else {
-            gpu_mode = kModeOam;
-            interrupt_stat(0b0010'0000);
+            set_mode(kModeOam);
           }
         }
         break;
-
-      case kModeVBlank:
+      }
+      case kModeVBlank: {
         if (gpu_cycles >= 456) {
           gpu_cycles = gpu_cycles - 456;
 
-          ly = ly + 1;
+          increment_line();
           if (ly == kScreenH + 10) {
             ly = 0;
-            gpu_mode = kModeOam;
-            interrupt_stat(0b0010'0000);
+            set_mode(kModeOam);
           }
         }
         break;
-    }
-
-    if (ly != line && ly == lyc) {
-      interrupt_stat(0b0100'0000);
+      }
     }
   }
 
