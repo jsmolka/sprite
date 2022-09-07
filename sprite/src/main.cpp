@@ -24,8 +24,14 @@ static constexpr dzint kCycles[] = {
 inline constexpr dzint kScreenW = 160;
 inline constexpr dzint kScreenH = 144;
 
-inline constexpr dzint kModeSearch = 2;
-inline constexpr dzint kModeRead = 3;
+inline constexpr dzint kInterruptVBlank = 1 << 0;
+inline constexpr dzint kInterruptStat = 1 << 1;
+inline constexpr dzint kInterruptTimer = 1 << 2;
+inline constexpr dzint kInterruptSerial = 1 << 3;
+inline constexpr dzint kInterruptJoypad = 1 << 4;
+
+inline constexpr dzint kModeOam = 2;
+inline constexpr dzint kModeVram = 3;
 inline constexpr dzint kModeHBlank = 0;
 inline constexpr dzint kModeVBlank = 1;
 
@@ -226,7 +232,7 @@ public:
         return rom[addr];  // Todo: implement MBC
       case 0x8:
       case 0x9:
-        if (gpu_mode == kModeRead) {
+        if (gpu_mode == kModeVram) {
           return 0xFF;
         } else {
           return vram[addr - 0x8000];
@@ -243,8 +249,8 @@ public:
           return wram[addr - 0xC000];
         } else if (addr <= 0xFE9F) {
           switch (gpu_mode) {
-            case kModeSearch:
-            case kModeRead:
+            case kModeOam:
+            case kModeVram:
               return 0xFF;
             default:
               return oam[addr - 0xFE00];
@@ -1400,6 +1406,16 @@ public:
     }
   }
 
+  void interrupt(dzint mask) {
+    if_ = if_ | mask;
+  }
+
+  void interrupt_stat(dzint mask) {
+    if (stat & mask) {
+      interrupt(kInterruptStat);
+    }
+  }
+
   void tick(dzint cycles) {
     constexpr auto kDiv = 256;
 
@@ -1407,9 +1423,9 @@ public:
       dzint freq = 1;
       switch (tac & 0b11) {
         case 0b00: freq = 1024; break;
-        case 0b01: freq =   16; break;
-        case 0b10: freq =   64; break;
-        case 0b11: freq =  256; break;
+        case 0b01: freq = 16; break;
+        case 0b10: freq = 64; break;
+        case 0b11: freq = 256; break;
       }
 
       tima_cycles = tima_cycles + cycles;
@@ -1419,7 +1435,7 @@ public:
 
         if (tima == 0x100) {
           tima = tma;
-          if_ = if_ | 0x04;
+          interrupt(kInterruptTimer);
         }
       }
     }
@@ -1430,19 +1446,21 @@ public:
       div_cycles = div_cycles - kDiv;
     }
 
+    auto line = ly;
     gpu_cycles = gpu_cycles + cycles;
     switch (gpu_mode) {
-      case kModeSearch:
+      case kModeOam:
         if (gpu_cycles >= 80) {
           gpu_cycles = gpu_cycles - 80;
-          gpu_mode = kModeRead;
+          gpu_mode = kModeVram;
         }
         break;
 
-      case kModeRead:
+      case kModeVram:
         if (gpu_cycles >= 172) {
           gpu_cycles = gpu_cycles - 172;
           gpu_mode = kModeHBlank;
+          interrupt_stat(0b0000'1000);
           scanline();
         }
         break;
@@ -1454,9 +1472,11 @@ public:
           ly = ly + 1;
           if (ly == kScreenH) {
             gpu_mode = kModeVBlank;
+            interrupt_stat(0b0001'0000);
             window->render();
           } else {
-            gpu_mode = kModeSearch;
+            gpu_mode = kModeOam;
+            interrupt_stat(0b0010'0000);
           }
         }
         break;
@@ -1467,11 +1487,16 @@ public:
 
           ly = ly + 1;
           if (ly == kScreenH + 10) {
-            gpu_mode = kModeSearch;
             ly = 0;
+            gpu_mode = kModeOam;
+            interrupt_stat(0b0010'0000);
           }
         }
         break;
+    }
+
+    if (ly != line && ly == lyc) {
+      interrupt_stat(0b0100'0000);
     }
   }
 
