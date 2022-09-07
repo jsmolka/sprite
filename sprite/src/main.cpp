@@ -77,6 +77,8 @@ public:
   dzint if_ = 0;
   dzint lcdc = 0;
   dzint stat = 0;
+  dzint gpu_mode = 0;
+  dzint gpu_cycles = 0;
   dzint scx = 0;
   dzint scy = 0;
   dzint ly = 0;
@@ -86,10 +88,6 @@ public:
   dzint obp1 = 0;
   dzint wx = 0;
   dzint wy = 0;
-
-  dzint gpu_mode = 0;
-  dzint gpu_cycles = 0;
-  dzint line = 0;
 
   auto af() const -> dzint {
     return f | (a << 8);
@@ -191,7 +189,7 @@ public:
       case 0x40:
         return lcdc;
       case 0x41:
-        return stat;
+        return stat | dzint(ly == lyc) << 2 | gpu_mode;
       case 0x42:
         return scy;
       case 0x43:
@@ -278,7 +276,7 @@ public:
   void write_byte_io(dzint addr, dzint byte) {
     switch (addr) {
       case 0x00:
-        joyp = byte;
+        joyp = byte & 0x0011'0000;
         return;
       case 0x01:
         std::printf("%c", (char)byte);
@@ -293,7 +291,7 @@ public:
         tma = byte;
         return;
       case 0x07:
-        tac = byte;
+        tac = byte & 0b0000'0111;
         return;
       case 0x0F:
         if_ = byte;
@@ -302,7 +300,7 @@ public:
         lcdc = byte;
         return;
       case 0x41:
-        stat = byte;
+        stat = byte & 0b0111'1000;
         return;
       case 0x42:
         scy = byte;
@@ -1443,8 +1441,8 @@ public:
         if (gpu_cycles >= 204) {
           gpu_cycles = gpu_cycles - 204;
 
-          line = line + 1;
-          if (line == kScreenH) {
+          ly = ly + 1;
+          if (ly == kScreenH) {
             gpu_mode = kModeVBlank;
             window->render();
           } else {
@@ -1457,10 +1455,10 @@ public:
         if (gpu_cycles >= 456) {
           gpu_cycles = gpu_cycles - 456;
 
-          line = line + 1;
-          if (line == kScreenH + 10) {
+          ly = ly + 1;
+          if (ly == kScreenH + 10) {
             gpu_mode = kModeSearch;
-            line = 0;
+            ly = 0;
           }
         }
         break;
