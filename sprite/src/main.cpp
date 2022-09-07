@@ -2,7 +2,7 @@
 
 #include "dz.h"
 
-static constexpr dzint opcode_cycles[] = {
+static constexpr dzint kCycles[] = {
   0x04, 0x0C, 0x08, 0x08, 0x04, 0x04, 0x08, 0x04, 0x14, 0x08, 0x08, 0x08, 0x04, 0x04, 0x08, 0x04,
   0x04, 0x0C, 0x08, 0x08, 0x04, 0x04, 0x08, 0x04, 0x0C, 0x08, 0x08, 0x08, 0x04, 0x04, 0x08, 0x04,
   0x08, 0x0C, 0x08, 0x08, 0x04, 0x04, 0x08, 0x04, 0x08, 0x08, 0x08, 0x08, 0x04, 0x04, 0x08, 0x04,
@@ -21,7 +21,11 @@ static constexpr dzint opcode_cycles[] = {
   0x0C, 0x0C, 0x08, 0x04, 0x00, 0x10, 0x08, 0x10, 0x0C, 0x08, 0x10, 0x04, 0x00, 0x00, 0x08, 0x10
 };
 
-struct GameBoy {
+inline constexpr auto kW = 160;
+inline constexpr auto kH = 144;
+
+class GameBoy {
+public:
   GameBoy() {
     vram.resize(0x2000, 0);
     wram.resize(0x2000, 0);
@@ -29,6 +33,12 @@ struct GameBoy {
     io.resize(0x80, 0);
     hram.resize(0x7F, 0);
   }
+
+  ~GameBoy() {
+    delete window;
+  }
+
+  SdlWindow* window = sdl_window("sprite", kW, kH, 2);
 
   dzint a = 0;
   dzint f = 0;
@@ -493,7 +503,7 @@ struct GameBoy {
 
   void cpu() {
     if (halt) {
-      tick(opcode_cycles[0]);
+      tick(kCycles[0]);
       return;
     }
 
@@ -1249,7 +1259,7 @@ struct GameBoy {
         rst(0x38);
         break;
     }
-    tick(opcode_cycles[opcode]);
+    tick(kCycles[opcode]);
   }
 
   void prefix() {
@@ -1408,7 +1418,7 @@ struct GameBoy {
     this->rom = rom;
     this->rom.resize(0x8000, 0);
 
-    while (true) {
+    while (sdl_events()) {
       cpu();
       irq();
     }
@@ -1417,6 +1427,8 @@ struct GameBoy {
 };
 
 auto main(int argc, char* argv[]) -> int {
+  std::atexit(SDL_Quit);
+
   if (argc < 2) {
     std::printf("cannot run without rom");
     return 1;
