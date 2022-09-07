@@ -21,8 +21,13 @@ static constexpr dzint kCycles[] = {
   0x0C, 0x0C, 0x08, 0x04, 0x00, 0x10, 0x08, 0x10, 0x0C, 0x08, 0x10, 0x04, 0x00, 0x00, 0x08, 0x10
 };
 
-inline constexpr auto kW = 160;
-inline constexpr auto kH = 144;
+inline constexpr dzint kScreenW = 160;
+inline constexpr dzint kScreenH = 144;
+
+inline constexpr dzint kModeSearch = 2;
+inline constexpr dzint kModeRead = 3;
+inline constexpr dzint kModeHBlank = 0;
+inline constexpr dzint kModeVBlank = 1;
 
 class GameBoy {
 public:
@@ -38,7 +43,7 @@ public:
     delete window;
   }
 
-  SdlWindow* window = sdl_window("sprite", kW, kH, 2);
+  SdlWindow* window = sdl_window("sprite", kScreenW, kScreenH, 2);
 
   dzint a = 0;
   dzint f = 0;
@@ -81,6 +86,10 @@ public:
   dzint obp1 = 0;
   dzint wx = 0;
   dzint wy = 0;
+
+  dzint gpu_mode = 0;
+  dzint gpu_cycles = 0;
+  dzint line = 0;
 
   auto af() const -> dzint {
     return f | (a << 8);
@@ -1412,6 +1421,54 @@ public:
       div = (div + 1) & 0xFF;
       div_cycles = div_cycles - kDiv;
     }
+
+    gpu_cycles = gpu_cycles + cycles;
+    switch (gpu_mode) {
+      case kModeSearch:
+        if (gpu_cycles >= 80) {
+          gpu_cycles = gpu_cycles - 80;
+          gpu_mode = kModeRead;
+        }
+        break;
+
+      case kModeRead:
+        if (gpu_cycles >= 172) {
+          gpu_cycles = gpu_cycles - 172;
+          gpu_mode = kModeHBlank;
+          scanline();
+        }
+        break;
+
+      case kModeHBlank:
+        if (gpu_cycles >= 204) {
+          gpu_cycles = gpu_cycles - 204;
+
+          line = line + 1;
+          if (line == kScreenH) {
+            gpu_mode = kModeVBlank;
+            window->render();
+          } else {
+            gpu_mode = kModeSearch;
+          }
+        }
+        break;
+
+      case kModeVBlank:
+        if (gpu_cycles >= 456) {
+          gpu_cycles = gpu_cycles - 456;
+
+          line = line + 1;
+          if (line == kScreenH + 10) {
+            gpu_mode = kModeSearch;
+            line = 0;
+          }
+        }
+        break;
+    }
+  }
+
+  void scanline() {
+
   }
 
   auto run(const dzbytes& rom) -> dzint {
