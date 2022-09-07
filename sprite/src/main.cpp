@@ -226,7 +226,11 @@ public:
         return rom[addr];  // Todo: implement MBC
       case 0x8:
       case 0x9:
-        return vram[addr - 0x8000];
+        if (gpu_mode == kModeRead) {
+          return 0xFF;
+        } else {
+          return vram[addr - 0x8000];
+        }
       case 0xA:
       case 0xB:
         return 0xFF;  // Todo: implement ERAM
@@ -238,7 +242,13 @@ public:
         if (addr <= 0xFDFF) {
           return wram[addr - 0xC000];
         } else if (addr <= 0xFE9F) {
-          return oam[addr - 0xFE00];
+          switch (gpu_mode) {
+            case kModeSearch:
+            case kModeRead:
+              return 0xFF;
+            default:
+              return oam[addr - 0xFE00];
+          }
         } else if (addr <= 0xFEFF) {
           return 0xFF;
         } else if (addr <= 0xFF7F) {
