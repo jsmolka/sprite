@@ -65,11 +65,11 @@ public:
   dzint h = 0;
   dzint l = 0;
 
-  dzint pc = 0x0100;
-  dzint sp = 0xFFFE;
+  dzint pc   = 0x0100;
+  dzint sp   = 0xFFFE;
   dzint halt = 0;
-  dzint ie = 0;
-  dzint ime = 1;
+  dzint ie   = 0;
+  dzint ime  = 1;
 
   dzbytes rom;
   dzbytes vram;
@@ -78,27 +78,27 @@ public:
   dzbytes io;
   dzbytes hram;
 
-  dzint joyp = 0;
-  dzint div = 0;
+  dzint joyp        = 0;
+  dzint div         = 0;
   dzint div_cycles  = 0;
-  dzint tima = 0;
+  dzint tima        = 0;
   dzint tima_cycles = 0;
-  dzint tma = 0;
-  dzint tac = 0;
-  dzint if_ = 0;
-  dzint lcdc = 0;
-  dzint stat = 0;
-  dzint gpu_mode = 0;
-  dzint gpu_cycles = 0;
-  dzint scx = 0;
-  dzint scy = 0;
-  dzint ly = 0;
-  dzint lyc = 0;
-  dzint bgp = 0;
-  dzint obp0 = 0;
-  dzint obp1 = 0;
-  dzint wx = 0;
-  dzint wy = 0;
+  dzint tma         = 0;
+  dzint tac         = 0;
+  dzint if_         = 0;
+  dzint lcdc        = 0;
+  dzint stat        = 0;
+  dzint gpu_mode    = 0;
+  dzint gpu_cycles  = 0;
+  dzint scx         = 0;
+  dzint scy         = 0;
+  dzint ly          = 0;
+  dzint lyc         = 0;
+  dzint bgp         = 0;
+  dzint obp0        = 0;
+  dzint obp1        = 0;
+  dzint wx          = 0;
+  dzint wy          = 0;
 
   auto af() const -> dzint {
     return f | (a << 8);
@@ -1450,9 +1450,9 @@ public:
       dzint freq = 1;
       switch (tac & 0b11) {
         case 0b00: freq = 1024; break;
-        case 0b01: freq = 16; break;
-        case 0b10: freq = 64; break;
-        case 0b11: freq = 256; break;
+        case 0b01: freq =   16; break;
+        case 0b10: freq =   64; break;
+        case 0b11: freq =  256; break;
       }
 
       tima_cycles = tima_cycles + cycles;

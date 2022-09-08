@@ -14,12 +14,12 @@
 #  include "SDL.h"
 #endif
 
-using dzbool = bool;
-using dzint = std::int64_t;
+using dzbool  = bool;
+using dzint   = std::int64_t;
 using dzfloat = double;
 
 template<typename T>
-using dzlist = std::vector<T>;
+using dzlist  = std::vector<T>;
 using dzbytes = dzlist<std::uint8_t>;
 
 inline constexpr auto noop = 0;
