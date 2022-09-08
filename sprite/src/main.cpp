@@ -375,6 +375,9 @@ public:
         break;
       case 0x8:
       case 0x9:
+        if (lcd_enabled() && gpu_mode == kModeVram) {
+          return;
+        }
         vram[addr - 0x8000] = byte;
         break;
       case 0xA:
@@ -389,6 +392,13 @@ public:
         if (addr <= 0xFDFF) {
           wram[addr - 0xC000] = byte;
         } else if (addr <= 0xFE9F) {
+          if (lcd_enabled()) {
+            switch (gpu_mode) {
+              case kModeOam:
+              case kModeVram:
+                return;
+            }
+          }
           oam[addr - 0xFE00] = byte;
         } else if (addr <= 0xFEFF) {
           noop;
