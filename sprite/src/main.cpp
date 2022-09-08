@@ -40,6 +40,10 @@ inline constexpr dzint kModeVBlank = 1;
 inline constexpr dzint kModeOam    = 2;
 inline constexpr dzint kModeVram   = 3;
 
+inline auto sign_extend(dzint value) -> dzint {
+  return (value << 56) >> 56;
+}
+
 class GameBoy {
 public:
   GameBoy() {
@@ -281,7 +285,7 @@ public:
   }
 
   auto read_signed_byte_pc() -> dzint {
-    return (read_byte_pc() << 56) >> 56;
+    return sign_extend(read_byte_pc());
   }
 
   auto read_half(dzint addr) const -> dzint {
