@@ -1556,11 +1556,11 @@ public:
       dzint tile_y = y / 32;
       dzint tile = vram[32 * tile_y + tile_x + map_base];
 
-      if (lcdc & (1ULL << 4)) {
+      if ((lcdc & (1ULL << 4)) == 0) {
         tile = sign_extend(tile);
       }
 
-      dzint pixel_x = x % 8;
+      dzint pixel_x = 8 - (x % 8);
       dzint pixel_y = y % 8;
       dzint pixel_byte_l = vram[16 * tile + tile_base + 2 * pixel_y];
       dzint pixel_byte_h = vram[16 * tile + tile_base + 2 * pixel_y + 1];
