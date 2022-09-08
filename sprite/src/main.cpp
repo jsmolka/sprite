@@ -1562,8 +1562,8 @@ public:
 
     dzint y = ly;
     for (dzint x = 0; x < kScreenW; ++x) {
-      dzint tile_x = x / 32;
-      dzint tile_y = y / 32;
+      dzint tile_x = x / 8;
+      dzint tile_y = y / 8;
       dzint tile = vram[32 * tile_y + tile_x + map_base];
 
       if ((lcdc & (1ULL << 4)) == 0) {
