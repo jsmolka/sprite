@@ -1487,7 +1487,7 @@ public:
       case kModeOam: {
         if (gpu_cycles >= 80) {
           gpu_cycles = gpu_cycles - 80;
-          set_mode(kModeVBlank);
+          set_mode(kModeVram);
         }
         break;
       }
