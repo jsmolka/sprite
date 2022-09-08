@@ -187,6 +187,10 @@ public:
     }
   }
 
+  auto lcd_enabled() const -> dzbool {
+    return lcdc & (1ULL << 7);
+  }
+
   auto read_byte_io(dzint addr) const -> dzint {
     switch (addr) {
       case 0x00:
@@ -241,7 +245,7 @@ public:
         return rom[addr];  // Todo: implement MBC
       case 0x8:
       case 0x9:
-        if (gpu_mode == kModeVram) {
+        if (lcd_enabled() && gpu_mode == kModeVram) {
           return 0xFF;
         } else {
           return vram[addr - 0x8000];
@@ -257,13 +261,14 @@ public:
         if (addr <= 0xFDFF) {
           return wram[addr - 0xC000];
         } else if (addr <= 0xFE9F) {
-          switch (gpu_mode) {
-            case kModeOam:
-            case kModeVram:
-              return 0xFF;
-            default:
-              return oam[addr - 0xFE00];
+          if (lcd_enabled()) {
+            switch (gpu_mode) {
+              case kModeOam:
+              case kModeVram:
+                return 0xFF;
+            }
           }
+          return oam[addr - 0xFE00];
         } else if (addr <= 0xFEFF) {
           return 0xFF;
         } else if (addr <= 0xFF7F) {
@@ -1524,7 +1529,10 @@ public:
   }
 
   void scanline() {
-
+    if (!lcd_enabled()) {
+      window->clear(0xFFFF'FFFF);
+      return;
+    }
   }
 
   auto run(const dzbytes& rom) -> dzint {
