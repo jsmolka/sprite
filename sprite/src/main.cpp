@@ -1533,6 +1533,48 @@ public:
       window->clear(0xFFFF'FFFF);
       return;
     }
+
+    if (lcdc & 0x1) {
+      background();
+    }
+  }
+
+  void background() {
+    dzint map_base = 0x1800;
+    if (lcdc & (1ULL << 3)) {
+      map_base = map_base + 0x0400;
+    }
+
+    dzint tile_base = 0x1000;
+    if (lcdc & (1ULL << 4)) {
+      tile_base = tile_base - 0x1000;
+    }
+
+    dzint y = ly;
+    for (dzint x = 0; x < kScreenW; ++x) {
+      dzint tile_x = x / 32;
+      dzint tile_y = y / 32;
+      dzint tile = vram[32 * tile_y + tile_x + map_base];
+
+      if (lcdc & (1ULL << 4)) {
+        tile = sign_extend(tile);
+      }
+
+      dzint pixel_x = x % 8;
+      dzint pixel_y = y % 8;
+      dzint pixel_byte_l = vram[16 * tile + tile_base + 2 * pixel_y];
+      dzint pixel_byte_h = vram[16 * tile + tile_base + 2 * pixel_y + 1];
+
+      dzint color = 0;
+      switch (((pixel_byte_l >> pixel_x) & 0x1) | (((pixel_byte_h >> pixel_x) & 0x1) << 1)) {
+        case 0b00: color = 0xff0f380f; break;
+        case 0b01: color = 0xff306230; break;
+        case 0b10: color = 0xff8bac0f; break;
+        case 0b11: color = 0xff9bbc0f; break;
+      }
+
+      window->set_pixel(x, y, color);
+    }
   }
 
   auto run(const dzbytes& rom) -> dzint {
