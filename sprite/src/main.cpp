@@ -21,6 +21,8 @@ static constexpr dzint kCycles[] = {
   0x0C, 0x0C, 0x08, 0x04, 0x00, 0x10, 0x08, 0x10, 0x0C, 0x08, 0x10, 0x04, 0x00, 0x00, 0x08, 0x10
 };
 
+static constexpr dzint kPalette[] = { 0xFFC6DE8C, 0xFF84A563, 0xFF396139, 0xFF081810 };
+
 inline constexpr dzint kScreenW = 160;
 inline constexpr dzint kScreenH = 144;
 
@@ -42,6 +44,10 @@ inline constexpr dzint kModeVram   = 3;
 
 inline auto sign_extend(dzint value) -> dzint {
   return (value << 56) >> 56;
+}
+
+inline auto color(dzint palette, dzint index) -> dzint {
+  return kPalette[(palette >> (2 * index)) & 0x3];
 }
 
 class GameBoy {
@@ -188,7 +194,7 @@ public:
   }
 
   auto lcd_enabled() const -> dzbool {
-    return lcdc & (1ULL << 7);
+    return lcdc & (1 << 7);
   }
 
   auto read_byte_io(dzint addr) const -> dzint {
@@ -308,9 +314,6 @@ public:
       case 0x00:
         joyp = byte & 0x0011'0000;
         return;
-      case 0x01:
-        std::printf("%c", (char)byte);
-        break;
       case 0x04:
         div = 0;
         return;
@@ -1419,7 +1422,7 @@ public:
       halt = 0;
       if (ime) {
         for (dzint bit = 0; bit < 5; ++bit) {
-          dzint mask = 1ULL << bit;
+          dzint mask = 1 << bit;
           if (servable & mask) {
             if_ = if_ & ~mask;
             rst(0x40 + 8 * bit);
@@ -1551,39 +1554,35 @@ public:
 
   void background() {
     dzint map_base = 0x1800;
-    if (lcdc & (1ULL << 3)) {
+    if (lcdc & (1 << 3)) {
       map_base = map_base + 0x0400;
     }
 
     dzint tile_base = 0x1000;
-    if (lcdc & (1ULL << 4)) {
+    if (lcdc & (1 << 4)) {
       tile_base = tile_base - 0x1000;
     }
 
     dzint y = ly;
     for (dzint x = 0; x < kScreenW; ++x) {
-      dzint tile_x = x / 8;
-      dzint tile_y = y / 8;
+      dzint texel_x = (x + scx) & 0xFF;
+      dzint texel_y = (y + scy) & 0xFF;
+
+      dzint tile_x = texel_x / 8;
+      dzint tile_y = texel_y / 8;
       dzint tile = vram[32 * tile_y + tile_x + map_base];
 
-      if ((lcdc & (1ULL << 4)) == 0) {
+      if ((lcdc & (1 << 4)) == 0) {
         tile = sign_extend(tile);
       }
 
-      dzint pixel_x = 8 - (x % 8);
-      dzint pixel_y = y % 8;
-      dzint pixel_byte_l = vram[16 * tile + tile_base + 2 * pixel_y];
-      dzint pixel_byte_h = vram[16 * tile + tile_base + 2 * pixel_y + 1];
+      dzint pixel_x = (texel_x & 0x7) ^ 0x7;
+      dzint pixel_y = (texel_y & 0x7);
 
-      dzint color = 0;
-      switch (((pixel_byte_l >> pixel_x) & 0x1) | (((pixel_byte_h >> pixel_x) & 0x1) << 1)) {
-        case 0b00: color = 0xff0f380f; break;
-        case 0b01: color = 0xff306230; break;
-        case 0b10: color = 0xff8bac0f; break;
-        case 0b11: color = 0xff9bbc0f; break;
-      }
-
-      window->set_pixel(x, y, color);
+      dzint addr = 16 * tile + tile_base + 2 * pixel_y;
+      dzint lsbc = vram[addr + 0] >> pixel_x;
+      dzint msbc = vram[addr + 1] >> pixel_x;
+      window->set_pixel(x, y, color(bgp, (lsbc & 0x1) | ((msbc & 0x1) << 1)));
     }
   }
 
