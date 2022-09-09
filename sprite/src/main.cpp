@@ -88,7 +88,7 @@ public:
   dzbytes io;
   dzbytes hram;
 
-  dzint joyp        = 0;
+  dzint joyp        = 0xFF;
   dzint div         = 0;
   dzint div_cycles  = 0;
   dzint tima        = 0;
@@ -1452,6 +1452,7 @@ public:
         interrupt_stat(kStatHBlank);
         break;
       case kModeVBlank:
+        interrupt(kInterruptVBlank);
         interrupt_stat(kStatVBlank);
         break;
     }
