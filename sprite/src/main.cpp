@@ -1544,7 +1544,7 @@ public:
 
   void scanline() {
     if (!lcd_enabled()) {
-      window->clear(0xFFFF'FFFF);
+      window->clear(kPalette[0]);
       return;
     }
 
