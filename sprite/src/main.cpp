@@ -98,8 +98,8 @@ public:
   dzint if_         = 0;
   dzint lcdc        = 0;
   dzint stat        = 0;
-  dzint gpu_mode    = 0;
-  dzint gpu_cycles  = 0;
+  dzint ppu_mode    = 0;
+  dzint ppu_cycles  = 0;
   dzint scx         = 0;
   dzint scy         = 0;
   dzint ly          = 0;
@@ -214,7 +214,7 @@ public:
       case 0x40:
         return lcdc;
       case 0x41:
-        return stat | dzint(ly == lyc) << 2 | gpu_mode;
+        return stat | dzint(ly == lyc) << 2 | ppu_mode;
       case 0x42:
         return scy;
       case 0x43:
@@ -251,7 +251,7 @@ public:
         return rom[addr];  // Todo: implement MBC
       case 0x8:
       case 0x9:
-        if (lcd_enabled() && gpu_mode == kModeVram) {
+        if (lcd_enabled() && ppu_mode == kModeVram) {
           return 0xFF;
         } else {
           return vram[addr - 0x8000];
@@ -268,7 +268,7 @@ public:
           return wram[addr - 0xC000];
         } else if (addr <= 0xFE9F) {
           if (lcd_enabled()) {
-            switch (gpu_mode) {
+            switch (ppu_mode) {
               case kModeOam:
               case kModeVram:
                 return 0xFF;
@@ -378,7 +378,7 @@ public:
         break;
       case 0x8:
       case 0x9:
-        if (lcd_enabled() && gpu_mode == kModeVram) {
+        if (lcd_enabled() && ppu_mode == kModeVram) {
           return;
         }
         vram[addr - 0x8000] = byte;
@@ -396,7 +396,7 @@ public:
           wram[addr - 0xC000] = byte;
         } else if (addr <= 0xFE9F) {
           if (lcd_enabled()) {
-            switch (gpu_mode) {
+            switch (ppu_mode) {
               case kModeOam:
               case kModeVram:
                 return;
@@ -1456,7 +1456,7 @@ public:
         interrupt_stat(kStatVBlank);
         break;
     }
-    gpu_mode = mode;
+    ppu_mode = mode;
   }
 
   void increment_line() {
@@ -1496,26 +1496,26 @@ public:
       div_cycles = div_cycles - kDiv;
     }
 
-    gpu_cycles = gpu_cycles + cycles;
-    switch (gpu_mode) {
+    ppu_cycles = ppu_cycles + cycles;
+    switch (ppu_mode) {
       case kModeOam: {
-        if (gpu_cycles >= 80) {
-          gpu_cycles = gpu_cycles - 80;
+        if (ppu_cycles >= 80) {
+          ppu_cycles = ppu_cycles - 80;
           set_mode(kModeVram);
         }
         break;
       }
       case kModeVram: {
-        if (gpu_cycles >= 172) {
-          gpu_cycles = gpu_cycles - 172;
+        if (ppu_cycles >= 172) {
+          ppu_cycles = ppu_cycles - 172;
           set_mode(kModeHBlank);
           scanline();
         }
         break;
       }
       case kModeHBlank: {
-        if (gpu_cycles >= 204) {
-          gpu_cycles = gpu_cycles - 204;
+        if (ppu_cycles >= 204) {
+          ppu_cycles = ppu_cycles - 204;
 
           increment_line();
           if (ly == kScreenH) {
@@ -1528,8 +1528,8 @@ public:
         break;
       }
       case kModeVBlank: {
-        if (gpu_cycles >= 456) {
-          gpu_cycles = gpu_cycles - 456;
+        if (ppu_cycles >= 456) {
+          ppu_cycles = ppu_cycles - 456;
 
           increment_line();
           if (ly == kScreenH + 10) {
