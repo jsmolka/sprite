@@ -228,8 +228,21 @@ public:
 
   auto read_byte_io(dzint addr) const -> dzint {
     switch (addr) {
-      case 0x00:
-        return joyp | 0b1100'0000;
+      case 0x00: {
+        dzint value = joyp & 0b0011'0000;
+        if ((joyp & (1 << 4)) == 0) {
+          value = value | dzint(sdl_keystate(SDL_SCANCODE_D)) << 0;
+          value = value | dzint(sdl_keystate(SDL_SCANCODE_A)) << 1;
+          value = value | dzint(sdl_keystate(SDL_SCANCODE_W)) << 2;
+          value = value | dzint(sdl_keystate(SDL_SCANCODE_S)) << 3;
+        } else {
+          value = value | dzint(sdl_keystate(SDL_SCANCODE_U)) << 0;
+          value = value | dzint(sdl_keystate(SDL_SCANCODE_H)) << 1;
+          value = value | dzint(sdl_keystate(SDL_SCANCODE_F)) << 2;
+          value = value | dzint(sdl_keystate(SDL_SCANCODE_G)) << 3;
+        }
+        return (value ^ 0b0000'1111) | 0b1100'0000;
+      }
       case 0x01:
         return sb;
       case 0x02:
