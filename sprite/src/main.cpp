@@ -66,14 +66,14 @@ public:
 
   SdlWindow* window = sdl_window("sprite", kScreenW, kScreenH, 2);
 
-  dzint a = 0;
-  dzint f = 0;
-  dzint b = 0;
-  dzint c = 0;
-  dzint d = 0;
-  dzint e = 0;
-  dzint h = 0;
-  dzint l = 0;
+  dzint a = 0x01;
+  dzint f = 0xB0;
+  dzint b = 0x00;
+  dzint c = 0x13;
+  dzint d = 0x00;
+  dzint e = 0xD8;
+  dzint h = 0x01;
+  dzint l = 0x4D;
 
   dzint pc   = 0x0100;
   dzint sp   = 0xFFFE;
