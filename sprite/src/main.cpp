@@ -55,9 +55,8 @@ public:
   GameBoy() {
     vram.resize(0x2000, 0);
     wram.resize(0x2000, 0);
-    oam.resize(0x100, 0);
-    io.resize(0x80, 0);
-    hram.resize(0x7F, 0);
+    oram.resize(0x0100, 0);
+    hram.resize(0x007F, 0);
   }
 
   ~GameBoy() {
@@ -84,31 +83,50 @@ public:
   dzbytes rom;
   dzbytes vram;
   dzbytes wram;
-  dzbytes oam;
-  dzbytes io;
+  dzbytes oram;
   dzbytes hram;
 
-  dzint joyp        = 0xFF;
-  dzint div         = 0;
-  dzint div_cycles  = 0;
-  dzint tima        = 0;
-  dzint tima_cycles = 0;
-  dzint tma         = 0;
-  dzint tac         = 0;
-  dzint if_         = 0;
-  dzint lcdc        = 0;
-  dzint stat        = 0;
-  dzint ppu_mode    = 0;
-  dzint ppu_cycles  = 0;
-  dzint scx         = 0;
-  dzint scy         = 0;
-  dzint ly          = 0;
-  dzint lyc         = 0;
-  dzint bgp         = 0;
-  dzint obp0        = 0;
-  dzint obp1        = 0;
-  dzint wx          = 0;
-  dzint wy          = 0;
+  dzint joyp        = 0xCF;
+  dzint sb          = 0x00;
+  dzint sc          = 0x7E;
+  dzint div         = 0xAC;
+  dzint div_cycles  = 0x00;
+  dzint tima        = 0x00;
+  dzint tima_cycles = 0x00;
+  dzint tma         = 0x00;
+  dzint tac         = 0xF8;
+  dzint if_         = 0xE1;
+  dzint nr10        = 0x80;
+  dzint nr11        = 0xBF;
+  dzint nr12        = 0xF3;
+  dzint nr14        = 0xBF;
+  dzint nr21        = 0x3F;
+  dzint nr22        = 0x00;
+  dzint nr24        = 0xBF;
+  dzint nr30        = 0x7F;
+  dzint nr31        = 0xFF;
+  dzint nr32        = 0x9F;
+  dzint nr34        = 0xBF;
+  dzint nr41        = 0xFF;
+  dzint nr42        = 0x00;
+  dzint nr43        = 0x00;
+  dzint nr44        = 0xBF;
+  dzint nr50        = 0x77;
+  dzint nr51        = 0xF3;
+  dzint nr52        = 0xF1;
+  dzint lcdc        = 0x91;
+  dzint stat        = 0x80;
+  dzint ppu_mode    = 0x00;
+  dzint ppu_cycles  = 0x00;
+  dzint scx         = 0x00;
+  dzint scy         = 0x00;
+  dzint ly          = 0x00;
+  dzint lyc         = 0x00;
+  dzint bgp         = 0xCF;
+  dzint obp0        = 0xFF;
+  dzint obp1        = 0xFF;
+  dzint wx          = 0x00;
+  dzint wy          = 0x00;
 
   auto af() const -> dzint {
     return f | (a << 8);
@@ -201,6 +219,10 @@ public:
     switch (addr) {
       case 0x00:
         return joyp;
+      case 0x01:
+        return sb;
+      case 0x02:
+        return sc;
       case 0x04:
         return div;
       case 0x05:
@@ -211,6 +233,42 @@ public:
         return tac;
       case 0x0F:
         return if_;
+      case 0x10:
+        return nr10;
+      case 0x11:
+        return nr11;
+      case 0x12:
+        return nr12;
+      case 0x14:
+        return nr14;
+      case 0x16:
+        return nr21;
+      case 0x17:
+        return nr22;
+      case 0x19:
+        return nr24;
+      case 0x1A:
+        return nr30;
+      case 0x1B:
+        return nr31;
+      case 0x1C:
+        return nr32;
+      case 0x1E:
+        return nr34;
+      case 0x20:
+        return nr41;
+      case 0x21:
+        return nr42;
+      case 0x22:
+        return nr43;
+      case 0x23:
+        return nr44;
+      case 0x24:
+        return nr50;
+      case 0x25:
+        return nr51;
+      case 0x26:
+        return nr52;
       case 0x40:
         return lcdc;
       case 0x41:
@@ -234,7 +292,7 @@ public:
       case 0x4B:
         return wx;
     }
-    return io[addr];
+    return 0xFF;
   }
 
   auto read_byte(dzint addr) const -> dzint {
@@ -274,7 +332,7 @@ public:
                 return 0xFF;
             }
           }
-          return oam[addr - 0xFE00];
+          return oram[addr - 0xFE00];
         } else if (addr <= 0xFEFF) {
           return 0xFF;
         } else if (addr <= 0xFF7F) {
@@ -312,59 +370,118 @@ public:
   void write_byte_io(dzint addr, dzint byte) {
     switch (addr) {
       case 0x00:
-        joyp = byte & 0x0011'0000;
-        return;
+        joyp = byte & 0x1111'0000;
+        break;
+      case 0x01:
+        sb = byte;
+        break;
+      case 0x02:
+        sc = byte;
+        break;
       case 0x04:
         div = 0;
         div_cycles = 0;
         tima_cycles = 0;
-        return;
+        break;
       case 0x05:
         tima = byte;
-        return;
+        break;
       case 0x06:
         tma = byte;
-        return;
+        break;
       case 0x07:
-        tac = byte & 0b0000'0111;
-        return;
+        tac = byte;
+        break;
       case 0x0F:
         if_ = byte;
-        return;
+        break;
+      case 0x10:
+        nr10 = byte;
+        break;
+      case 0x11:
+        nr11 = byte;
+        break;
+      case 0x12:
+        nr12 = byte;
+        break;
+      case 0x14:
+        nr14 = byte;
+        break;
+      case 0x16:
+        nr21 = byte;
+        break;
+      case 0x17:
+        nr22 = byte;
+        break;
+      case 0x19:
+        nr24 = byte;
+        break;
+      case 0x1A:
+        nr30 = byte;
+        break;
+      case 0x1B:
+        nr31 = byte;
+        break;
+      case 0x1C:
+        nr32 = byte;
+        break;
+      case 0x1E:
+        nr34 = byte;
+        break;
+      case 0x20:
+        nr41 = byte;
+        break;
+      case 0x21:
+        nr42 = byte;
+        break;
+      case 0x22:
+        nr43 = byte;
+        break;
+      case 0x23:
+        nr44 = byte;
+        break;
+      case 0x24:
+        nr50 = byte;
+        break;
+      case 0x25:
+        nr51 = byte;
+        break;
+      case 0x26:
+        nr52 = byte;
+        break;
       case 0x40:
         lcdc = byte;
-        return;
+        break;
       case 0x41:
-        stat = byte & 0b0111'1000;
-        return;
+        stat = byte & 0b1111'1000;
+        break;
       case 0x42:
         scy = byte;
-        return;
+        break;
       case 0x43:
         scx = byte;
-        return;
+        break;
       case 0x44:
-        return;
+        break;
       case 0x45:
         lyc = byte;
-        return;
+        break;
       case 0x47:
         bgp = byte;
-        return;
+        break;
       case 0x48:
         obp0 = byte;
-        return;
+        break;
       case 0x49:
         obp1 = byte;
-        return;
+        break;
       case 0x4A:
         wy = byte;
-        return;
+        break;
       case 0x4B:
         wx = byte;
-        return;
+        break;
     }
-    io[addr] = byte;
   }
 
   void write_byte(dzint addr, dzint byte) {
@@ -404,7 +521,7 @@ public:
                 return;
             }
           }
-          oam[addr - 0xFE00] = byte;
+          oram[addr - 0xFE00] = byte;
         } else if (addr <= 0xFEFF) {
           noop;
         } else if (addr <= 0xFF7F) {
