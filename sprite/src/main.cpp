@@ -332,11 +332,12 @@ public:
         return eram[addr - 0xA000];
       case 0xC:
       case 0xD:
-      case 0xE:
         return wram[addr - 0xC000];
+      case 0xE:
+        return read_byte(addr - 0x2000);
       case 0xF:
         if (addr < 0xFE00) {
-          return wram[addr - 0xC000];
+          return read_byte(addr - 0x2000);
         } else if (addr < 0xFEA0) {
           if (lcd_enabled()) {
             switch (ppu_mode) {
@@ -525,12 +526,14 @@ public:
         break;
       case 0xC:
       case 0xD:
-      case 0xE:
         wram[addr - 0xC000] = byte;
+        break;
+      case 0xE:
+        write_byte(addr - 0x2000, byte);
         break;
       case 0xF:
         if (addr < 0xFE00) {
-          wram[addr - 0xC000] = byte;
+          write_byte(addr - 0x2000, byte);
         } else if (addr < 0xFEA0) {
           if (lcd_enabled()) {
             switch (ppu_mode) {
