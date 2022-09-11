@@ -63,6 +63,7 @@ public:
   GameBoy() {
     vram.resize(0x2000, 0);
     wram.resize(0x2000, 0);
+    eram.resize(0x2000, 0);
     oram.resize(0x0100, 0);
     hram.resize(0x007F, 0);
   }
@@ -90,6 +91,7 @@ public:
 
   dzbytes rom;
   dzbytes vram;
+  dzbytes eram;
   dzbytes wram;
   dzbytes oram;
   dzbytes hram;
@@ -327,7 +329,7 @@ public:
         }
       case 0xA:
       case 0xB:
-        return 0xFF;  // Todo: implement ERAM
+        return eram[addr - 0xA000];
       case 0xC:
       case 0xD:
       case 0xE:
@@ -519,7 +521,8 @@ public:
         break;
       case 0xA:
       case 0xB:
-        break;  // Todo: implement ERAM
+        eram[addr - 0xA000] = byte;
+        break;
       case 0xC:
       case 0xD:
       case 0xE:
