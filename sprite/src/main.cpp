@@ -690,7 +690,6 @@ public:
   }
 
   void rst(dzint addr) {
-    ime = 0;
     push(pc);
     pc = addr;
   }
@@ -1583,6 +1582,7 @@ public:
         for (dzint bit = 0; bit < 5; ++bit) {
           dzint mask = 1 << bit;
           if (servable & mask) {
+            ime = 0;
             if_ = if_ & ~mask;
             rst(0x40 + 8 * bit);
             break;
