@@ -316,6 +316,8 @@ public:
         return;
       case 0x04:
         div = 0;
+        div_cycles = 0;
+        tima_cycles = 0;
         return;
       case 0x05:
         tima = byte;
