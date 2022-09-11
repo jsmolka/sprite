@@ -218,11 +218,11 @@ public:
   auto read_byte_io(dzint addr) const -> dzint {
     switch (addr) {
       case 0x00:
-        return joyp;
+        return joyp | 0b1100'0000;
       case 0x01:
         return sb;
       case 0x02:
-        return sc;
+        return sc | 0b0111'1110;
       case 0x04:
         return div;
       case 0x05:
@@ -230,11 +230,11 @@ public:
       case 0x06:
         return tma;
       case 0x07:
-        return tac;
+        return tac | 0b1111'1000;
       case 0x0F:
-        return if_;
+        return if_ | 0b1110'0000;
       case 0x10:
-        return nr10;
+        return nr10 | 0b1000'0000;
       case 0x11:
         return nr11;
       case 0x12:
@@ -248,31 +248,31 @@ public:
       case 0x19:
         return nr24;
       case 0x1A:
-        return nr30;
+        return nr30 | 0b0111'1111;
       case 0x1B:
         return nr31;
       case 0x1C:
-        return nr32;
+        return nr32 | 0b1001'1111;
       case 0x1E:
         return nr34;
       case 0x20:
-        return nr41;
+        return nr41 | 0b1100'0000;
       case 0x21:
         return nr42;
       case 0x22:
         return nr43;
       case 0x23:
-        return nr44;
+        return nr44 | 0b0011'1111;
       case 0x24:
         return nr50;
       case 0x25:
         return nr51;
       case 0x26:
-        return nr52;
+        return nr52 | 0b0111'0000;
       case 0x40:
         return lcdc;
       case 0x41:
-        return stat | dzint(ly == lyc) << 2 | ppu_mode;
+        return stat | dzint(ly == lyc) << 2 | ppu_mode | 0b1000'0000;
       case 0x42:
         return scy;
       case 0x43:
@@ -529,7 +529,7 @@ public:
         } else if (addr <= 0xFFFE) {
           hram[addr - 0xFF80] = byte;
         } else {
-          ie = byte & 0x1F;
+          ie = byte;
         }
         break;
     }
