@@ -335,9 +335,9 @@ public:
       case 0xE:
         return wram[addr - 0xC000];
       case 0xF:
-        if (addr <= 0xFDFF) {
+        if (addr < 0xFE00) {
           return wram[addr - 0xC000];
-        } else if (addr <= 0xFE9F) {
+        } else if (addr < 0xFEA0) {
           if (lcd_enabled()) {
             switch (ppu_mode) {
               case kModeOam:
@@ -346,11 +346,11 @@ public:
             }
           }
           return oram[addr - 0xFE00];
-        } else if (addr <= 0xFEFF) {
+        } else if (addr < 0xFF00) {
           return 0xFF;
-        } else if (addr <= 0xFF7F) {
+        } else if (addr < 0xFF80) {
           return read_byte_io(addr - 0xFF00);
-        } else if (addr <= 0xFFFE) {
+        } else if (addr < 0xFFFF) {
           return hram[addr - 0xFF80];
         } else {
           return ie;
@@ -529,9 +529,9 @@ public:
         wram[addr - 0xC000] = byte;
         break;
       case 0xF:
-        if (addr <= 0xFDFF) {
+        if (addr < 0xFE00) {
           wram[addr - 0xC000] = byte;
-        } else if (addr <= 0xFE9F) {
+        } else if (addr < 0xFEA0) {
           if (lcd_enabled()) {
             switch (ppu_mode) {
               case kModeOam:
@@ -540,11 +540,11 @@ public:
             }
           }
           oram[addr - 0xFE00] = byte;
-        } else if (addr <= 0xFEFF) {
+        } else if (addr < 0xFF00) {
           noop;
-        } else if (addr <= 0xFF7F) {
+        } else if (addr < 0xFF80) {
           write_byte_io(addr - 0xFF00, byte);
-        } else if (addr <= 0xFFFE) {
+        } else if (addr < 0xFFFF) {
           hram[addr - 0xFF80] = byte;
         } else {
           ie = byte;
