@@ -229,24 +229,24 @@ public:
   auto read_byte_io(dzint addr) const -> dzint {
     switch (addr) {
       case 0x00: {
-        dzint value = joyp & 0b0011'0000;
+        dzint value = joyp & 0b00110000;
         if ((joyp & (1 << 4)) == 0) {
-          value = value | dzint(sdl_keystate(SDL_SCANCODE_D)) << 0;
-          value = value | dzint(sdl_keystate(SDL_SCANCODE_A)) << 1;
-          value = value | dzint(sdl_keystate(SDL_SCANCODE_W)) << 2;
-          value = value | dzint(sdl_keystate(SDL_SCANCODE_S)) << 3;
+          value = value | (dzint(sdl_keystate(SDL_SCANCODE_D)) << 0);
+          value = value | (dzint(sdl_keystate(SDL_SCANCODE_A)) << 1);
+          value = value | (dzint(sdl_keystate(SDL_SCANCODE_W)) << 2);
+          value = value | (dzint(sdl_keystate(SDL_SCANCODE_S)) << 3);
         } else {
-          value = value | dzint(sdl_keystate(SDL_SCANCODE_U)) << 0;
-          value = value | dzint(sdl_keystate(SDL_SCANCODE_H)) << 1;
-          value = value | dzint(sdl_keystate(SDL_SCANCODE_F)) << 2;
-          value = value | dzint(sdl_keystate(SDL_SCANCODE_G)) << 3;
+          value = value | (dzint(sdl_keystate(SDL_SCANCODE_U)) << 0);
+          value = value | (dzint(sdl_keystate(SDL_SCANCODE_H)) << 1);
+          value = value | (dzint(sdl_keystate(SDL_SCANCODE_F)) << 2);
+          value = value | (dzint(sdl_keystate(SDL_SCANCODE_G)) << 3);
         }
-        return (value ^ 0b0000'1111) | 0b1100'0000;
+        return (value ^ 0b00001111) | 0b11000000;
       }
       case 0x01:
         return sb;
       case 0x02:
-        return sc | 0b0111'1110;
+        return sc | 0b01111110;
       case 0x04:
         return div;
       case 0x05:
@@ -254,11 +254,11 @@ public:
       case 0x06:
         return tma;
       case 0x07:
-        return tac | 0b1111'1000;
+        return tac | 0b11111000;
       case 0x0F:
-        return if_ | 0b1110'0000;
+        return if_ | 0b11100000;
       case 0x10:
-        return nr10 | 0b1000'0000;
+        return nr10 | 0b10000000;
       case 0x11:
         return nr11;
       case 0x12:
@@ -272,31 +272,31 @@ public:
       case 0x19:
         return nr24;
       case 0x1A:
-        return nr30 | 0b0111'1111;
+        return nr30 | 0b01111111;
       case 0x1B:
         return nr31;
       case 0x1C:
-        return nr32 | 0b1001'1111;
+        return nr32 | 0b10011111;
       case 0x1E:
         return nr34;
       case 0x20:
-        return nr41 | 0b1100'0000;
+        return nr41 | 0b11000000;
       case 0x21:
         return nr42;
       case 0x22:
         return nr43;
       case 0x23:
-        return nr44 | 0b0011'1111;
+        return nr44 | 0b00111111;
       case 0x24:
         return nr50;
       case 0x25:
         return nr51;
       case 0x26:
-        return nr52 | 0b0111'0000;
+        return nr52 | 0b01110000;
       case 0x40:
         return lcdc;
       case 0x41:
-        return stat | dzint(ly == lyc) << 2 | ppu_mode | 0b1000'0000;
+        return stat | dzint(ly == lyc) << 2 | ppu_mode | 0b10000000;
       case 0x42:
         return scy;
       case 0x43:
@@ -397,7 +397,7 @@ public:
   void write_byte_io(dzint addr, dzint byte) {
     switch (addr) {
       case 0x00:
-        joyp = byte & 0x1111'0000;
+        joyp = byte & 0x11110000;
         break;
       case 0x01:
         sb = byte;
@@ -480,7 +480,7 @@ public:
         lcdc = byte;
         break;
       case 0x41:
-        stat = byte & 0b1111'1000;
+        stat = byte & 0b11111000;
         break;
       case 0x42:
         scy = byte;
@@ -1558,7 +1558,7 @@ public:
           l = operand;
           break;
         case 0x6:
-          write_byte(hl(), operand); 
+          write_byte(hl(), operand);
           break;
         default:
           a = operand;
