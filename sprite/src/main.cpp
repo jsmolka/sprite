@@ -42,6 +42,14 @@ inline constexpr dzint kModeVBlank = 1;
 inline constexpr dzint kModeOam    = 2;
 inline constexpr dzint kModeVram   = 3;
 
+inline auto min(dzint a, dzint b) -> dzint {
+  if (a < b) {
+    return a;
+  } else {
+    return b;
+  }
+}
+
 inline auto sign_extend(dzint value) -> dzint {
   return (value << 56) >> 56;
 }
@@ -122,6 +130,7 @@ public:
   dzint scy         = 0x00;
   dzint ly          = 0x00;
   dzint lyc         = 0x00;
+  dzint dma         = 0x00;
   dzint bgp         = 0xCF;
   dzint obp0        = 0xFF;
   dzint obp1        = 0xFF;
@@ -281,6 +290,8 @@ public:
         return ly;
       case 0x45:
         return lyc;
+      case 0x46:
+        return dma;
       case 0x47:
         return bgp;
       case 0x48:
@@ -465,6 +476,10 @@ public:
         break;
       case 0x45:
         lyc = byte;
+        break;
+      case 0x46:
+        dma = byte;
+        oam_dma(byte);
         break;
       case 0x47:
         bgp = byte;
@@ -1532,6 +1547,14 @@ public:
           a = operand;
           break;
       }
+    }
+  }
+
+  void oam_dma(dzint src) {
+    src = 0x100 * min(src, 0xF1);
+    for (dzint dst = 0xFE00; dst < 0xFEA0; ++dst) {
+      write_byte(dst, read_byte(src));
+      src = src + 1;
     }
   }
 
