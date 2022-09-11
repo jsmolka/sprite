@@ -585,6 +585,12 @@ public:
     set_hl(value);
   }
 
+  auto add_signed_byte(dzint value) -> dzint {
+    dzint byte = read_signed_byte_pc();
+    set_f(0, 0, (value & 0xF) + (byte & 0xF) > 0xF, (value & 0xFF) + (byte & 0xFF) > 0xFF);
+    return value + byte;
+  }
+
   void adc(dzint other) {
     auto value = a + other + fc();
     set_f((value & 0xFF) == 0, 0, (a ^ other ^ value) & 0x10, value & 0xFF00);
@@ -1386,13 +1392,9 @@ public:
       case 0xE7:  // RST 0x20
         rst(0x20);
         break;
-      case 0xE8: {  // ADD SP, s8
-        auto sbyte = read_signed_byte_pc();
-        auto value = sp + sbyte;
-        set_f(0, 0, (sp & 0xF) + (sbyte & 0xF) > 0xF, (sp & 0xFF) + (sbyte & 0xFF) > 0xFF);
-        sp = value & 0xFFFF;
+      case 0xE8:  // ADD SP, s8
+        sp = add_signed_byte(sp) & 0xFFFF;
         break;
-      }
       case 0xE9:  // JP (HL)
         pc = hl();
         break;
@@ -1426,13 +1428,9 @@ public:
       case 0xF7:  // RST 0x30
         rst(0x30);
         break;
-      case 0xF8: {  // LD HL, SP + s8
-        auto sbyte = read_signed_byte_pc();
-        auto value = sp + sbyte;
-        set_f(0, 0, (sp & 0xF) + (sbyte & 0xF) > 0xF, (sp & 0xFF) + (sbyte & 0xFF) > 0xFF);
-        set_hl(value);
+      case 0xF8:  // LD HL, SP + s8
+        set_hl(add_signed_byte(sp));
         break;
-      }
       case 0xF9:  // LD SP, HL
         sp = hl();
         break;
