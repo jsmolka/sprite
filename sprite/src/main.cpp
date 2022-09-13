@@ -642,20 +642,24 @@ public:
     set_f(a == 0, 0, 0, 0);
   }
 
-  void jp(dzbool condition) {
-    if (condition) {
+  void jp(std::optional<dzbool> condition) {
+    if (condition == null || *condition) {
       pc = read_half_pc();
-      tick(4);
+      if (condition != null) {
+        tick(4);
+      }
     } else {
       pc = (pc + 2) & 0xFFFF;
     }
   }
 
-  void jr(dzbool condition) {
+  void jr(std::optional<dzbool> condition) {
     auto offset = 1;
-    if (condition) {
+    if (condition == null || *condition) {
       offset = read_signed_byte_pc();
-      tick(4);
+      if (condition != null) {
+        tick(4);
+      }
     }
     pc = (pc + offset) & 0xFFFF;
   }
@@ -671,21 +675,25 @@ public:
     return value;
   }
 
-  void call(dzbool condition) {
-    if (condition) {
+  void call(std::optional<dzbool> condition) {
+    if (condition == null || *condition) {
       auto addr = read_half_pc();
       push(pc);
       pc = addr;
-      tick(12);
+      if (condition != null) {
+        tick(12);
+      }
     } else {
       pc = (pc + 2) & 0xFFFF;
     }
   }
 
-  void ret(dzbool condition) {
-    if (condition) {
+  void ret(std::optional<dzbool> condition) {
+    if (condition == null || *condition) {
       pc = pop();
-      tick(12);
+      if (condition != null) {
+        tick(12);
+      }
     }
   }
 
@@ -794,7 +802,7 @@ public:
         a = a & 0xFF;
         break;
       case 0x18:  // JR s8
-        jr(true);
+        jr(null);
         break;
       case 0x19:  // ADD HL, DE
         add_half(de());
@@ -1308,7 +1316,7 @@ public:
         jp(!fz());
         break;
       case 0xC3:  // JP u16
-        jp(true);
+        jp(null);
         break;
       case 0xC4:  // CALL NZ, u16
         call(!fz());
@@ -1326,7 +1334,7 @@ public:
         ret(fz());
         break;
       case 0xC9:  // RET
-        ret(true);
+        ret(null);
         break;
       case 0xCA:  // JP Z, u16
         jp(fz());
@@ -1338,7 +1346,7 @@ public:
         call(fz());
         break;
       case 0xCD:  // CALL u16
-        call(true);
+        call(null);
         break;
       case 0xCE:  // ADC A, u8
         adc(read_byte_pc());
@@ -1702,13 +1710,12 @@ public:
   }
 
   void scanline() {
-    if (!lcd_enabled()) {
+    if (lcd_enabled()) {
+      if (lcdc & 0x1) {
+        background();
+      }
+    } else {
       window->clear(kPalette[0]);
-      return;
-    }
-
-    if (lcdc & 0x1) {
-      background();
     }
   }
 
