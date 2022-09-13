@@ -1495,10 +1495,20 @@ public:
         break;
       case 0x6:
         operand = read_byte(hl());
-        tick(8);
         break;
       default:
         operand = a;
+        break;
+    }
+
+    switch (opcode & 0xC7) {
+      case 0x06:
+      case 0x86:
+      case 0xC6:
+        tick(8);
+        break;
+      case 0x46:
+        tick(4);
         break;
     }
 
