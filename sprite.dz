@@ -1,6 +1,4 @@
-var ascii = """                                 !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~ """
-
-var opcode_cycles = [
+var kCycles = [
   0x04, 0x0C, 0x08, 0x08, 0x04, 0x04, 0x08, 0x04, 0x14, 0x08, 0x08, 0x08, 0x04, 0x04, 0x08, 0x04,
   0x04, 0x0C, 0x08, 0x08, 0x04, 0x04, 0x08, 0x04, 0x0C, 0x08, 0x08, 0x08, 0x04, 0x04, 0x08, 0x04,
   0x08, 0x0C, 0x08, 0x08, 0x04, 0x04, 0x08, 0x04, 0x08, 0x08, 0x08, 0x08, 0x04, 0x04, 0x08, 0x04,
@@ -19,54 +17,112 @@ var opcode_cycles = [
   0x0C, 0x0C, 0x08, 0x04, 0x00, 0x10, 0x08, 0x10, 0x0C, 0x08, 0x10, 0x04, 0x00, 0x00, 0x08, 0x10
 ]
 
+var kPalette = [0xFFC6DE8C, 0xFF84A563, 0xFF396139, 0xFF081810]
+
+var kScreenW = 160
+var kScreenH = 144
+
+var kStatLine   = 1 << 6
+var kStatOam    = 1 << 5
+var kStatVBlank = 1 << 4
+var kStatHBlank = 1 << 3
+
+var kInterruptVBlank = 1 << 0
+var kInterruptStat   = 1 << 1
+var kInterruptTimer  = 1 << 2
+var kInterruptSerial = 1 << 3
+var kInterruptJoypad = 1 << 4
+
+var kModeHBlank = 0
+var kModeVBlank = 1
+var kModeOam    = 2
+var kModeVram   = 3
+
+def min(a, b):
+  if a < b:
+    return a
+  else:
+    return b
+    
+def sign_extend(value):
+  return (value << 56) >> 56
+  
+def color(palette, index):
+  return kPalette[(palette >> (2 * index)) & 0x3]
+
 class GameBoy:
   def init():
-    this.a = 0
-    this.f = 0
-    this.b = 0
-    this.c = 0
-    this.d = 0
-    this.e = 0
-    this.h = 0
-    this.l = 0
+    this.window = sdl_window("sprite", kScreenW, kScreenH, 2)
+  
+    this.a = 0x01
+    this.f = 0xB0
+    this.b = 0x00
+    this.c = 0x13
+    this.d = 0x00
+    this.e = 0xD8
+    this.h = 0x01
+    this.l = 0x4D
 
-    this.pc = 0x0100
-    this.sp = 0xFFFE
-    this.halt = false
-    this.ie = 0
-    this.ime = 1
+    this.pc   = 0x0100
+    this.sp   = 0xFFFE
+    this.halt = 0
+    this.ie   = 0
+    this.ime  = 1
 
     this.rom = null
     this.vram = bytes()
     this.vram.resize(0x2000, 0)
     this.wram = bytes()
     this.wram.resize(0x2000, 0)
-    this.oam = bytes()
-    this.oam.resize(0x100, 0)
-    this.io = bytes()
-    this.io.resize(0x80, 0)
+    this.eram = bytes()
+    this.eram.resize(0x2000, 0)
+    this.oram = bytes()
+    this.oram.resize(0x0100, 0)
     this.hram = bytes()
-    this.hram.resize(0x7F, 0)
+    this.hram.resize(0x007F, 0)
 
-    this.joyp = 0
-    this.div = 0
-    this.div_cycles = 0
-    this.tima = 0
-    this.tima_cycles = 0
-    this.tma = 0
-    this.tac = 0
-    this.if_ = 0
-    this.lcdc = 0
-    this.stat = 0
-    this.scx = 0
-    this.scy = 0
-    this.ly = 0
-    this.lyc = 0
-    this.bgp = 0
-    this.obp0 = 0
-    this.obp1 = 0
-    this.wx = 0
-    this.wy = 0
+    this.joyp        = 0xCF
+    this.sb          = 0x00
+    this.sc          = 0x7E
+    this.div         = 0xAC
+    this.div_cycles  = 0x00
+    this.tima        = 0x00
+    this.tima_cycles = 0x00
+    this.tma         = 0x00
+    this.tac         = 0xF8
+    this.if_         = 0xE1
+    this.nr10        = 0x80
+    this.nr11        = 0xBF
+    this.nr12        = 0xF3
+    this.nr14        = 0xBF
+    this.nr21        = 0x3F
+    this.nr22        = 0x00
+    this.nr24        = 0xBF
+    this.nr30        = 0x7F
+    this.nr31        = 0xFF
+    this.nr32        = 0x9F
+    this.nr34        = 0xBF
+    this.nr41        = 0xFF
+    this.nr42        = 0x00
+    this.nr43        = 0x00
+    this.nr44        = 0xBF
+    this.nr50        = 0x77
+    this.nr51        = 0xF3
+    this.nr52        = 0xF1
+    this.lcdc        = 0x91
+    this.stat        = 0x80
+    this.ppu_mode    = 0x00
+    this.ppu_cycles  = 0x00
+    this.scx         = 0x00
+    this.scy         = 0x00
+    this.ly          = 0x00
+    this.lyc         = 0x00
+    this.dma         = 0x00
+    this.bgp         = 0xCF
+    this.obp0        = 0xFF
+    this.obp1        = 0xFF
+    this.wx          = 0x00
+    this.wy          = 0x00
 
   def af():
     return this.f | (this.a << 8)
@@ -131,11 +187,29 @@ class GameBoy:
       else:
         f = f & ~0x10
     this.f = f
+    
+  def lcd_enabled():
+    return this.lcdc & (1 << 7)
 
   def read_byte_io(addr):
     switch addr:
       case 0x00:
-        return this.joyp
+        var value = this.joyp & 0b00110000
+        if (this.joyp & (1 << 4)) == 0:
+          value = value | (sdl_keystate( 7) << 0)
+          value = value | (sdl_keystate( 4) << 1)
+          value = value | (sdl_keystate(26) << 2)
+          value = value | (sdl_keystate(22) << 3)
+        else:
+          value = value | (sdl_keystate(24) << 0)
+          value = value | (sdl_keystate(11) << 1)
+          value = value | (sdl_keystate( 9) << 2)
+          value = value | (sdl_keystate(10) << 3)
+        return (value ^ 0b00001111) | 0b11000000
+      case 0x01:
+        return this.sb
+      case 0x02:
+        return this.sc | 0b01111110
       case 0x04:
         return this.div
       case 0x05:
@@ -143,13 +217,49 @@ class GameBoy:
       case 0x06:
         return this.tma
       case 0x07:
-        return this.tac
+        return this.tac | 0b11111000
       case 0x0F:
-        return this.if_
+        return this.if_ | 0b11100000
+      case 0x10:
+        return this.nr10 | 0b10000000
+      case 0x11:
+        return this.nr11
+      case 0x12:
+        return this.nr12
+      case 0x14:
+        return this.nr14
+      case 0x16:
+        return this.nr21
+      case 0x17:
+        return this.nr22
+      case 0x19:
+        return this.nr24
+      case 0x1A:
+        return this.nr30 | 0b01111111
+      case 0x1B:
+        return this.nr31
+      case 0x1C:
+        return this.nr32 | 0b10011111
+      case 0x1E:
+        return this.nr34
+      case 0x20:
+        return this.nr41 | 0b11000000
+      case 0x21:
+        return this.nr42
+      case 0x22:
+        return this.nr43
+      case 0x23:
+        return this.nr44 | 0b00111111
+      case 0x24:
+        return this.nr50
+      case 0x25:
+        return this.nr51
+      case 0x26:
+        return this.nr52 | 0b01110000
       case 0x40:
         return this.lcdc
       case 0x41:
-        return this.stat
+        return this.stat | ((this.ly == this.lyc) << 2) | this.ppu_mode | 0b10000000
       case 0x42:
         return this.scy
       case 0x43:
@@ -158,6 +268,8 @@ class GameBoy:
         return this.ly
       case 0x45:
         return this.lyc
+      case 0x46:
+        return this.dma
       case 0x47:
         return this.bgp
       case 0x48:
@@ -168,8 +280,7 @@ class GameBoy:
         return this.wy
       case 0x4B:
         return this.wx
-
-    return this.io[addr]
+    return 0xFF
 
   def read_byte(addr):
     switch addr >> 12:
@@ -185,28 +296,36 @@ class GameBoy:
         return this.rom[addr]  # Todo: implement MBC
       case 0x8:
       case 0x9:
-        return this.vram[addr - 0x8000]
+        if this.lcd_enabled() && this.ppu_mode == kModeVram:
+          return 0xFF
+        else:
+          return this.vram[addr - 0x8000]
       case 0xA:
       case 0xB:
-        return 0xFF  # Todo: implement ERAM
+        return this.eram[addr - 0xA000]
       case 0xC:
       case 0xD:
-      case 0xE:
         return this.wram[addr - 0xC000]
+      case 0xE:
+        return this.read_byte(addr - 0xC000)
       case 0xF:
-        if addr <= 0xFDFF:
-          return this.wram[addr - 0xC000]
-        elif addr <= 0xFE9F:
-          return this.oam[addr - 0xFE00]
-        elif addr <= 0xFEFF:
+        if addr < 0xFE00:
+          return this.read_byte(addr - 0x2000)
+        elif addr < 0xFEA0:
+          if this.lcd_enabled():
+            switch this.ppu_mode:
+              case kModeOam:
+              case kModeVram:
+                return 0xFF
+          return oram[addr - 0xFE00]
+        elif addr < 0xFF00:
           return 0xFF
-        elif addr <= 0xFF7F:
+        elif addr < 0xFF80:
           return this.read_byte_io(addr - 0xFF00)
-        elif addr <= 0xFFFE:
+        elif addr < 0xFFFF:
           return this.hram[addr - 0xFF80]
         else:
           return this.ie
-
     return 0xFF
 
   def read_byte_pc():
@@ -215,7 +334,7 @@ class GameBoy:
     return value
 
   def read_signed_byte_pc():
-    return (this.read_byte_pc() << 56) >> 56
+    return sign_extend(this.read_byte_pc())
 
   def read_half(addr):
     return this.read_byte(addr) | (this.read_byte(addr + 1) << 8)
@@ -228,59 +347,84 @@ class GameBoy:
   def write_byte_io(addr, byte):
     switch addr:
       case 0x00:
-        this.joyp = byte
-        return
+        this.joyp = byte & 0x11110000
       case 0x01:
-        print(ascii[byte])
+        this.sb = byte
+      case 0x02:
+        this.sc = byte
       case 0x04:
         this.div = 0
-        return
+        this.div_cycles = 0
+        this.tima_cycles = 0
       case 0x05:
         this.tima = byte
-        return
       case 0x06:
         this.tma = byte
-        return
       case 0x07:
         this.tac = byte
-        return
       case 0x0F:
         this.if_ = byte
-        return
+      case 0x10:
+        this.nr10 = byte
+      case 0x11:
+        this.nr11 = byte
+      case 0x12:
+        this.nr12 = byte
+      case 0x14:
+        this.nr14 = byte
+      case 0x16:
+        this.nr21 = byte
+      case 0x17:
+        this.nr22 = byte
+      case 0x19:
+        this.nr24 = byte
+      case 0x1A:
+        this.nr30 = byte
+      case 0x1B:
+        this.nr31 = byte
+      case 0x1C:
+        this.nr32 = byte
+      case 0x1E:
+        this.nr34 = byte
+      case 0x20:
+        this.nr41 = byte
+      case 0x21:
+        this.nr42 = byte
+      case 0x22:
+        this.nr43 = byte
+      case 0x23:
+        this.nr44 = byte
+      case 0x24:
+        this.nr50 = byte
+      case 0x25:
+        this.nr51 = byte
+      case 0x26:
+        this.nr52 = byte
       case 0x40:
         this.lcdc = byte
-        return
       case 0x41:
-        this.stat = byte
-        return
+        this.stat = byte & 0b11111000
       case 0x42:
         this.scy = byte
-        return
       case 0x43:
         this.scx = byte
-        return
       case 0x44:
-        return
+        noop
       case 0x45:
         this.lyc = byte
-        return
+      case 0x46:
+        this.dma = byte
+        this.oam_dma(byte)
       case 0x47:
         this.bgp = byte
-        return
       case 0x48:
         this.obp0 = byte
-        return
       case 0x49:
         this.obp1 = byte
-        return
       case 0x4A:
         this.wy = byte
-        return
       case 0x4B:
         this.wx = byte
-        return
-
-    this.io[addr] = byte
 
   def write_byte(addr, byte):
     switch addr >> 12:
@@ -295,27 +439,35 @@ class GameBoy:
         noop
       case 0x8:
       case 0x9:
+        if this.lcd_enabled() && this.ppu_mode == kModeVram:
+          return
         this.vram[addr - 0x8000] = byte
       case 0xA:
       case 0xB:
-        noop  # Todo: implement ERAM
+        this.eram[addr - 0xA000] = byte
       case 0xC:
       case 0xD:
-      case 0xE:
         this.wram[addr - 0xC000] = byte
+      case 0xE:
+        this.write_byte(addr - 0x2000, byte)
       case 0xF:
-        if addr <= 0xFDFF:
-          this.wram[addr - 0xC000] = byte
-        elif addr <= 0xFE9F:
-          this.oam[addr - 0xFE00] = byte
-        elif addr <= 0xFEFF:
+        if addr < 0xFE00:
+          this.write_byte(addr - 0x2000, byte)
+        elif addr < 0xFEA0:
+          if this.lcd_enabled():
+            switch this.ppu_mode:
+              case kModeOam:
+              case kModeVram:
+                return
+          this.oram[addr - 0xFE00] = byte
+        elif addr < 0xFF00:
           noop
-        elif addr <= 0xFF7F:
+        elif addr < 0xFF80:
           this.write_byte_io(addr - 0xFF00, byte)
-        elif addr <= 0xFFFE:
+        elif addr < 0xFFFF:
           this.hram[addr - 0xFF80] = byte
         else:
-          this.ie = byte & 0x1F
+          this.ie = byte
 
   def write_half(addr, half):
     this.write_byte(addr, half & 0xFF)
@@ -340,6 +492,11 @@ class GameBoy:
     var value = this.hl() + other
     this.set_f(null, 0, (this.hl() ^ other ^ value) & 0x1000, value & 0xFFFF0000)
     this.set_hl(value)
+    
+  def add_signed_byte(value):
+    var byte = this.read_signed_byte_pc()
+    this.set_f(0, 0, (value & 0xF) + (byte & 0xF) > 0xF, (value & 0xFF) + (byte & 0xFF) > 0xFF)
+    return value + byte
 
   def adc(other):
     var value = this.a + other + this.fc()
@@ -373,17 +530,19 @@ class GameBoy:
     this.set_f(this.a == 0, 0, 0, 0)
 
   def jp(condition):
-    if condition:
+    if condition == null || condition:
       this.pc = this.read_half_pc()
-      this.tick(4)
+      if condition != null:
+        this.tick(4)
     else:
       this.pc = (this.pc + 2) & 0xFFFF
 
   def jr(condition):
     var offset = 1
-    if condition:
+    if condition == null || condition:
       offset = this.read_signed_byte_pc()
-      this.tick(4)
+      if condition != null:
+        this.tick(4)
     this.pc = (this.pc + offset) & 0xFFFF
 
   def push(value):
@@ -396,21 +555,22 @@ class GameBoy:
     return value
 
   def call(condition):
-    if condition:
+    if condition == null || condition:
       var addr = this.read_half_pc()
       this.push(this.pc)
       this.pc = addr
-      this.tick(12)
+      if condition != null:
+        this.tick(12)
     else:
       this.pc = (this.pc + 2) & 0xFFFF
 
   def ret(condition):
-    if condition:
+    if condition == null || condition:
       this.pc = this.pop()
-      this.tick(12)
+      if condition != null:
+        this.tick(12)
 
   def rst(addr):
-    this.ime = 0
     this.push(this.pc)
     this.pc = addr
 
@@ -432,7 +592,7 @@ class GameBoy:
 
   def cpu():
     if this.halt:
-      this.tick(opcode_cycles[0])
+      this.tick(kCycles[0])
       return
 
     var opcode = this.read_byte_pc()
@@ -492,7 +652,7 @@ class GameBoy:
         this.set_f(0, 0, 0, this.a >> 8)
         this.a = this.a & 0xFF
       case 0x18:  # JR s8
-        this.jr(true)
+        this.jr(null)
       case 0x19:  # ADD HL, DE
         this.add_half(this.de())
       case 0x1A:  # LD A, (DE)
@@ -842,7 +1002,7 @@ class GameBoy:
       case 0xC2:  # JP NZ, u16
         this.jp(!this.fz())
       case 0xC3:  # JP u16
-        this.jp(true)
+        this.jp(null)
       case 0xC4:  # CALL NZ, u16
         this.call(!this.fz())
       case 0xC5:  # PUSH BC
@@ -854,7 +1014,7 @@ class GameBoy:
       case 0xC8:  # RET Z
         this.ret(this.fz())
       case 0xC9:  # RET
-        this.ret(true)
+        this.ret(null)
       case 0xCA:  # JP Z, u16
         this.jp(this.fz())
       case 0xCB:  # PREFIX CB
@@ -862,7 +1022,7 @@ class GameBoy:
       case 0xCC:  # CALL Z, u16
         this.call(this.fz())
       case 0xCD:  # CALL u16
-        this.call(true)
+        this.call(null)
       case 0xCE:  # ADC A, u8
         this.adc(this.read_byte_pc())
       case 0xCF:  # RST 0x08
@@ -907,10 +1067,7 @@ class GameBoy:
       case 0xE7:  # RST 0x20
         this.rst(0x20)
       case 0xE8:  # ADD SP, s8
-        var sbyte = this.read_signed_byte_pc()
-        var value = this.sp + sbyte
-        this.set_f(0, 0, (this.sp & 0xF) + (sbyte & 0xF) > 0xF, (this.sp & 0xFF) + (sbyte & 0xFF) > 0xFF)
-        this.sp = value & 0xFFFF
+        this.sp = this.add_signed_byte(this.sp) & 0xFFFF
       case 0xE9:  # JP (HL)
         this.pc = this.hl()
       case 0xEA:  # LD (u16), A
@@ -934,10 +1091,7 @@ class GameBoy:
       case 0xF7:  # RST 0x30
         this.rst(0x30)
       case 0xF8:  # LD HL, SP + s8
-        var sbyte = this.read_signed_byte_pc()
-        var value = this.sp + sbyte
-        this.set_f(0, 0, (this.sp & 0xF) + (sbyte & 0xF) > 0xF, (this.sp & 0xFF) + (sbyte & 0xFF) > 0xFF)
-        this.set_hl(value)
+        this.set_hl(this.add_signed_byte(this.sp))
       case 0xF9:  # LD SP, HL
         this.sp = this.hl()
       case 0xFA:  # LD A, (u16)
@@ -948,7 +1102,7 @@ class GameBoy:
         this.cp(this.read_byte_pc())
       case 0xFF:  # RST 0x38
         this.rst(0x38)
-    this.tick(opcode_cycles[opcode])
+    this.tick(kCycles[opcode])
 
   def prefix():
     var opcode = this.read_byte_pc()
@@ -969,9 +1123,16 @@ class GameBoy:
         operand = this.l
       case 0x6:
         operand = this.read_byte(this.hl())
-        this.tick(8)
       case 0x7:
         operand = this.a
+        
+    switch opcode & 0xC7:
+      case 0x06:
+      case 0x86:
+      case 0xC6:
+        this.tick(8)
+      case 0x46:
+        this.tick(4)
 
     var writeback = true
     if opcode <= 0x07:  # RLC
@@ -1033,6 +1194,12 @@ class GameBoy:
         case 0x7:
           this.a = operand
 
+  def oam_dma(src):
+    src = 0x100 * min(src, 0xF1)
+    for dst in 0xFE00 .. 0xFEA0:
+      this.write_byte(dst, this.read_byte(src))
+      src = src + 1
+
   def irq():
     var servable = this.ie & this.if_
     if servable:
@@ -1041,9 +1208,33 @@ class GameBoy:
         for bit in 0 .. 5:
           var mask = 1 << bit
           if servable & mask:
+            this.ime = 0
             this.if_ = this.if_ & ~mask
             this.rst(0x40 + 8 * bit)
             break
+            
+  def interrupt(mask):
+    this.if_ = this.if_ | mask
+    
+  def interrupt_stat(mask):
+    if this.stat & mask:
+      this.interrupt(kInterruptStat)
+      
+  def set_mode(mode):
+    switch mode:
+      case kModeOam:
+        this.interrupt_stat(kStatOam)
+      case kModeHBlank:
+        this.interrupt_stat(kStatHBlank)
+      case kModeVBlank:
+        this.interrupt(kInterruptVBlank)
+        this.interrupt_stat(kStatVBlank)
+    this.ppu_mode = mode
+    
+  def increment_line():
+    this.ly = this.ly + 1
+    if this.ly == this.lyc:
+      this.interrupt_stat(kStatLine)
 
   def tick(cycles):
     var kDiv = 256
@@ -1066,19 +1257,85 @@ class GameBoy:
         this.tima_cycles = this.tima_cycles - freq
 
         if this.tima == 0x100:
-          this.tima = this.tima + 1
-          this.if_ = this.if_ | 0x4
+          this.tima = this.tma
+          this.interrupt(kInterruptTimer)
 
     this.div_cycles = this.div_cycles + cycles
     while this.div_cycles >= kDiv:
       this.div = (this.div + 1) & 0xFF
       this.div_cycles = this.div_cycles - kDiv
+      
+    this.ppu_cycles = this.ppu_cycles + cycles
+    switch this.ppu_mode:
+      case kModeOam:
+        if this.ppu_cycles >= 80:
+          this.ppu_cycles = this.ppu_cycles - 80
+          this.set_mode(kModeVram)
+      case kModeVram:
+        if this.ppu_cycles >= 172:
+          this.ppu_cycles = this.ppu_cycles - 172
+          this.set_mode(kModeHBlank)
+          this.scanline()
+      case kModeHBlank:
+        if this.ppu_cycles >= 204:
+          this.ppu_cycles = this.ppu_cycles - 204
+
+          this.increment_line()
+          if this.ly == kScreenH:
+            this.set_mode(kModeVBlank)
+            this.window.render()
+          else:
+            this.set_mode(kModeOam)
+      case kModeVBlank:
+        if this.ppu_cycles >= 456:
+          this.ppu_cycles = this.ppu_cycles - 456
+
+          this.increment_line()
+          if this.ly == kScreenH + 10:
+            this.ly = 0
+            this.set_mode(kModeOam)
+            
+  def scanline():
+    if this.lcd_enabled():
+      if this.lcdc & 0x1:
+        this.background()
+    else:
+      this.window.clear(kPalette[0])
+
+  def background():
+    var map_base = 0x1800
+    if this.lcdc & (1 << 3):
+      map_base = map_base + 0x0400
+
+    var tile_base = 0x1000
+    if this.lcdc & (1 << 4):
+      tile_base = tile_base - 0x1000
+
+    var y = this.ly
+    for x in 0 .. kScreenW:
+      var texel_x = (x + this.scx) & 0xFF
+      var texel_y = (y + this.scy) & 0xFF
+
+      var tile_x = texel_x // 8
+      var tile_y = texel_y // 8
+      var tile = this.vram[32 * tile_y + tile_x + map_base]
+
+      if (this.lcdc & (1 << 4)) == 0:
+        tile = this.sign_extend(tile)
+
+      var pixel_x = (texel_x & 0x7) ^ 0x7
+      var pixel_y = (texel_y & 0x7)
+
+      var addr = 16 * tile + tile_base + 2 * pixel_y
+      var lsbc = this.vram[addr + 0] >> pixel_x
+      var msbc = this.vram[addr + 1] >> pixel_x
+      this.window.set_pixel(x, y, color(this.bgp, (lsbc & 0x1) | ((msbc & 0x1) << 1)))
 
   def run(rom):
     this.rom = rom
     this.rom.resize(0x8000, 0)
 
-    while true:
+    while sdl_events():
       this.cpu()
       this.irq()
 
