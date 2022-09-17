@@ -848,7 +848,7 @@ class GameBoy:
       case 0x75:  # LD (HL), L
         this.write_byte(this.hl(), this.l)
       case 0x76:  # HALT
-        this.halt = true
+        this.halt = 1
       case 0x77:  # LD (HL), A
         this.write_byte(this.hl(), this.a)
       case 0x78:  # LD A, B
@@ -1203,7 +1203,7 @@ class GameBoy:
   def irq():
     var servable = this.ie & this.if_
     if servable:
-      this.halt = false
+      this.halt = 0
       if this.ime:
         for bit in 0 .. 5:
           var mask = 1 << bit
@@ -1316,8 +1316,8 @@ class GameBoy:
       var texel_x = (x + this.scx) & 0xFF
       var texel_y = (y + this.scy) & 0xFF
 
-      var tile_x = texel_x // 8
-      var tile_y = texel_y // 8
+      var tile_x = texel_x >> 3
+      var tile_y = texel_y >> 3
       var tile = this.vram[32 * tile_y + tile_x + map_base]
 
       if (this.lcdc & (1 << 4)) == 0:
