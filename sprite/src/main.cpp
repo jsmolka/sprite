@@ -89,6 +89,8 @@ public:
   dzint ie   = 0;
   dzint ime  = 1;
 
+  dzint mbc = 0;
+
   dzbytes rom;
   dzbytes vram;
   dzbytes eram;
@@ -1765,9 +1767,49 @@ public:
   }
 
   auto run(const dzbytes& rom) -> dzint {
-    this->rom = rom;
-    this->rom.resize(0x8000, 0);
+    if (rom.size() < 0x8000) {
+      std::printf("ROM too small\n");
+      return 1;
+    }
 
+    // https://gbdev.io/pandocs/The_Cartridge_Header.html#0147--cartridge-type
+    dzint type = rom[0x147];
+    switch (type) {
+      case 0x00:
+      case 0x08:
+      case 0x09:
+        mbc = 0;
+        break;
+      case 0x01:  // Super Mario Land
+      case 0x02:
+      case 0x03:  // Super Mario Land 2, Zelda
+        mbc = 1;
+        break;
+      case 0x05:
+      case 0x06:
+        mbc = 2;
+        break;
+      case 0x0F:
+      case 0x10:
+      case 0x11:
+      case 0x12:
+      case 0x13:  // Pokemon
+        mbc = 3;
+        break;
+      case 0x19:
+      case 0x1A:
+      case 0x1B:
+      case 0x1C:
+      case 0x1D:
+      case 0x1E:
+        mbc = 5;
+        break;
+      default:
+        std::printf("unsupported MBC $%x\n", (int)type);
+        return 1;
+    }
+
+    this->rom = rom;
     while (sdl_events()) {
       cpu();
       irq();
@@ -1780,7 +1822,7 @@ auto main(int argc, char* argv[]) -> int {
   std::atexit(SDL_Quit);
 
   if (argc < 2) {
-    std::printf("cannot run without rom");
+    std::printf("cannot run without rom\n");
     return 1;
   }
 
