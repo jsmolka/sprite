@@ -1329,7 +1329,8 @@ class GameBoy:
       var addr = 16 * tile + tile_base + 2 * pixel_y
       var lsbc = this.vram[addr + 0] >> pixel_x
       var msbc = this.vram[addr + 1] >> pixel_x
-      this.window.set_pixel(x, y, color(this.bgp, (lsbc & 0x1) | ((msbc & 0x1) << 1)))
+      var idxc = (lsbc & 0x1) | (msbc & 0x1) << 1
+      this.window.set_pixel(x, y, color(this.bgp, idxc))
 
   def run(rom):
     this.rom = rom

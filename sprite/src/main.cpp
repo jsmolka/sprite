@@ -1759,7 +1759,8 @@ public:
       dzint addr = 16 * tile + tile_base + 2 * pixel_y;
       dzint lsbc = vram[addr + 0] >> pixel_x;
       dzint msbc = vram[addr + 1] >> pixel_x;
-      window->set_pixel(x, y, color(bgp, (lsbc & 0x1) | ((msbc & 0x1) << 1)));
+      dzint idxc = (lsbc & 0x1) | (msbc & 0x1) << 1;
+      window->set_pixel(x, y, color(bgp, idxc));
     }
   }
 
