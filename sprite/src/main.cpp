@@ -352,7 +352,7 @@ public:
       case 0x5:
       case 0x6:
       case 0x7:
-        if (mbc == 1) {
+        if (mbc == 1 || mbc == 3) {
           auto bank = (ram_bank << 5) | rom_bank;
           return rom[(bank & (rom_banks - 1)) << 14 | (addr & 0x3FFF)];
         }
@@ -550,7 +550,7 @@ public:
     switch (addr >> 12) {
       case 0x0:
       case 0x1:
-        if (mbc == 1 && ram_exists) {
+        if ((mbc == 1 || mbc == 3) && ram_exists) {
           ram_enable = (byte & 0xF) == 0xA;
         }
         break;
@@ -558,11 +558,13 @@ public:
       case 0x3:
         if (mbc == 1) {
           rom_bank = max(1, byte & 0x1F);
+        } else if (mbc == 3) {
+          rom_bank = max(1, byte & 0x7F);
         }
         break;
       case 0x4:
       case 0x5:
-        if (mbc == 1 && ram_exists) {
+        if ((mbc == 1 || mbc == 3) && ram_exists) {
           ram_bank = byte & 0x3;
         }
         break;
@@ -1834,17 +1836,13 @@ public:
       case 0x03:
         mbc = 1;
         break;
-      //case 0x05:
-      //case 0x06:
-      //  mbc = 2;
-      //  break;
-      //case 0x0F:
-      //case 0x10:
-      //case 0x11:
-      //case 0x12:
-      //case 0x13:
-      //  mbc = 3;
-      //  break;
+      case 0x0F:
+      case 0x10:
+      case 0x11:
+      case 0x12:
+      case 0x13:
+        mbc = 3;
+        break;
       default:
         std::printf("unsupported cartridge type %d\n", int(rom[0x147]));
         return false;
