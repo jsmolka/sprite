@@ -50,6 +50,14 @@ inline auto min(dzint a, dzint b) -> dzint {
   }
 }
 
+inline auto max(dzint a, dzint b) -> dzint {
+  if (a > b) {
+    return a;
+  } else {
+    return b;
+  }
+}
+
 inline auto sign_extend(dzint value) -> dzint {
   return (value << 56) >> 56;
 }
@@ -63,7 +71,6 @@ public:
   GameBoy() {
     vram.resize(0x2000, 0);
     wram.resize(0x2000, 0);
-    eram.resize(0x2000, 0);
     oram.resize(0x0100, 0);
     hram.resize(0x007F, 0);
   }
@@ -89,7 +96,14 @@ public:
   dzint ie   = 0;
   dzint ime  = 1;
 
-  dzint mbc = 0;
+  dzint mbc        = 0;
+  dzint mbc_mode   = 0;
+  dzint rom_bank   = 1;
+  dzint rom_banks  = 0;
+  dzint ram_exists = 0;
+  dzint ram_enable = 0;
+  dzint ram_bank   = 0;
+  dzint ram_banks  = 0;
 
   dzbytes rom;
   dzbytes vram;
@@ -329,12 +343,20 @@ public:
       case 0x1:
       case 0x2:
       case 0x3:
+        if (mbc == 1 && mbc_mode == 1) {
+          auto bank = (ram_bank << 5);
+          return rom[((bank << 14) & (rom_banks - 1)) | (addr & 0x3FFF)];
+        }
         return rom[addr];
       case 0x4:
       case 0x5:
       case 0x6:
       case 0x7:
-        return rom[addr];  // Todo: implement MBC
+        if (mbc == 1) {
+          auto bank = (ram_bank << 5) | rom_bank;
+          return rom[((bank << 14) & (rom_banks - 1)) | (addr & 0x3FFF)];
+        }
+        return rom[addr];
       case 0x8:
       case 0x9:
         if (lcd_enabled() && ppu_mode == kModeVram) {
@@ -344,7 +366,14 @@ public:
         }
       case 0xA:
       case 0xB:
-        return eram[addr - 0xA000];
+        if (ram_enable) {
+          addr = addr & 0x1FFF;
+          if (mbc_mode == 1) {
+            addr = addr | (ram_bank << 13);
+          }
+          return eram[addr];
+        }
+        break;
       case 0xC:
       case 0xD:
         return wram[addr - 0xC000];
@@ -521,12 +550,27 @@ public:
     switch (addr >> 12) {
       case 0x0:
       case 0x1:
+        if (mbc == 1 && ram_exists) {
+          ram_enable = (byte & 0xF) == 0xA;
+        }
+        break;
       case 0x2:
       case 0x3:
+        if (mbc == 1) {
+          rom_bank = max(1, byte & 0x1F);
+        }
+        break;
       case 0x4:
       case 0x5:
+        if (mbc == 1 && ram_exists) {
+          ram_bank = byte & 0x3;
+        }
+        break;
       case 0x6:
       case 0x7:
+        if (mbc == 1) {
+          mbc_mode = byte & 0x1;
+        }
         break;
       case 0x8:
       case 0x9:
@@ -537,7 +581,13 @@ public:
         break;
       case 0xA:
       case 0xB:
-        eram[addr - 0xA000] = byte;
+        if (ram_enable) {
+          addr = addr & 0x1FFF;
+          if (mbc_mode == 1) {
+            addr = addr | (ram_bank << 13);
+          }
+          eram[addr] = byte;
+        }
         break;
       case 0xC:
       case 0xD:
@@ -1766,23 +1816,22 @@ public:
     }
   }
 
-  auto run(const dzbytes& rom) -> dzint {
+  auto boot(const dzbytes& rom) -> dzbool {
+    this->rom = rom;
     if (rom.size() < 0x8000) {
-      std::printf("ROM too small\n");
-      return 1;
+      std::printf("rom too small\n");
+      return false;
     }
 
-    // https://gbdev.io/pandocs/The_Cartridge_Header.html#0147--cartridge-type
-    dzint type = rom[0x147];
-    switch (type) {
+    switch (rom[0x147]) {
       case 0x00:
       case 0x08:
       case 0x09:
         mbc = 0;
         break;
-      case 0x01:  // Super Mario Land
+      case 0x01:
       case 0x02:
-      case 0x03:  // Super Mario Land 2, Zelda
+      case 0x03:
         mbc = 1;
         break;
       case 0x05:
@@ -1793,23 +1842,68 @@ public:
       case 0x10:
       case 0x11:
       case 0x12:
-      case 0x13:  // Pokemon
+      case 0x13:
         mbc = 3;
         break;
-      case 0x19:
-      case 0x1A:
-      case 0x1B:
-      case 0x1C:
-      case 0x1D:
-      case 0x1E:
-        mbc = 5;
-        break;
       default:
-        std::printf("unsupported MBC $%x\n", (int)type);
-        return 1;
+        std::printf("unsupported cartridge type %d\n", int(rom[0x147]));
+        return false;
     }
 
-    this->rom = rom;
+    switch (rom[0x148]) {
+      case 0x00: rom_banks =   2; break;
+      case 0x01: rom_banks =   4; break;
+      case 0x02: rom_banks =   8; break;
+      case 0x03: rom_banks =  16; break;
+      case 0x04: rom_banks =  32; break;
+      case 0x05: rom_banks =  64; break;
+      case 0x06: rom_banks = 128; break;
+      case 0x07: rom_banks = 256; break;
+      case 0x08: rom_banks = 512; break;
+      default:
+        std::printf("unsupported rom size %d\n", int(rom[0x148]));
+        return false;
+    }
+
+    if (0x4000 * rom_banks != rom.size()) {
+      std::printf("expected rom size %d but got %d\n", int(0x4000 * rom_banks), int(rom.size()));
+      return false;
+    }
+
+    switch (rom[0x147]) {
+      case 0x02:
+      case 0x03:
+      case 0x08:
+      case 0x09:
+      case 0x0C:
+      case 0x0D:
+      case 0x10:
+      case 0x12:
+      case 0x13:
+        ram_exists = 1;
+        break;
+    }
+
+    if (ram_exists) {
+      switch (rom[0x149]) {
+        case 0x00: ram_banks =  0; break;
+        case 0x02: ram_banks =  1; break;
+        case 0x03: ram_banks =  4; break;
+        case 0x04: ram_banks = 16; break;
+        case 0x05: ram_banks =  8; break;
+        default:
+          std::printf("unsupported ram size %d\n", int(rom[0x149]));
+          return false;
+      }
+      eram.resize(0x2000 * ram_banks, 0xFF);
+    }
+    return true;
+  }
+
+  auto run(const dzbytes& rom) -> dzint {
+    if (!boot(rom)) {
+      return 1;
+    }
     while (sdl_events()) {
       cpu();
       irq();
