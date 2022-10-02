@@ -1778,6 +1778,9 @@ public:
       if (lcdc & 0x1) {
         background();
       }
+      if (lcdc & 0x2) {
+        sprites();
+      }
     } else {
       window->clear(kPalette[0]);
     }
@@ -1815,6 +1818,82 @@ public:
       dzint msbc = vram[addr + 1] >> pixel_x;
       dzint idxc = (lsbc & 0x1) | (msbc & 0x1) << 1;
       window->set_pixel(x, y, color(bgp, idxc));
+    }
+  }
+
+  void sprites() {
+    dzint height;
+    if (lcdc & (1 << 2)) {
+      height = 16;
+    } else {
+      height = 8;
+    }
+
+    dzint visible = 0;
+    for (dzint s = 40 - 1; s >= 0; --s) {
+      dzint addr = 4 * s;
+      dzint y    = dzint(oram[addr + 0]) - 16;
+      dzint x    = dzint(oram[addr + 1]) - 8;
+      dzint tile = oram[addr + 2];
+      dzint data = oram[addr + 3];
+
+      if (x <= -8 || x >= kScreenW) {
+        continue;
+      }
+
+      dzint line = ly - y;
+      if (line < 0 || line >= height) {
+        continue;
+      }
+
+      dzint palette;
+      if (data & (1 << 4)) {
+        palette = obp1;
+      } else {
+        palette = obp0;
+      }
+
+      if (height == 16) {
+        if (line < 8) {
+          tile = tile & 0xFE;
+        } else {
+          tile = tile | 0x01;
+        }
+      }
+
+      dzint ty = line;
+      if (data & (1 << 6)) {
+        ty = ty ^ 0x7;
+      }
+
+      for (dzint i = 0; i < 8; ++i) {
+        dzint tx = x + i;
+        if (data & (1 << 5)) {
+          tx = tx ^ 0x7;
+        }
+
+        if (tx < 0) {
+          continue;
+        }
+        if (tx >= kScreenW) {
+          break;
+        }
+
+
+        dzint pixel_x = tx & 0x7;
+        dzint pixel_y = ty & 0x7;
+
+        dzint addr = 16 * tile + 2 * pixel_y;
+        dzint lsbc = vram[addr + 0] >> pixel_x;
+        dzint msbc = vram[addr + 1] >> pixel_x;
+        dzint idxc = (lsbc & 0x1) | (msbc & 0x1) << 1;
+        window->set_pixel(tx, ly, color(palette, idxc));
+      }
+
+      visible = visible + 1;
+      if (visible == 10) {
+        break;
+      }
     }
   }
 
