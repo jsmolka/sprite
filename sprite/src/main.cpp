@@ -1786,14 +1786,22 @@ public:
     }
   }
 
+  auto read_tile(dzint base, dzint tile, dzint x, dzint y) -> dzint {
+    dzint addr = 16 * tile + 2 * y + base;
+    dzint lsbc = vram[addr + 0] >> (x ^ 0x7);
+    dzint msbc = vram[addr + 1] >> (x ^ 0x7);
+
+    return (lsbc & 0x1) | (msbc & 0x1) << 1;
+  }
+
   void background() {
     dzint map_base = 0x1800;
-    if (lcdc & (1 << 3)) {
+    if (lcdc & 0x08) {
       map_base = map_base + 0x0400;
     }
 
     dzint tile_base = 0x1000;
-    if (lcdc & (1 << 4)) {
+    if (lcdc & 0x10) {
       tile_base = tile_base - 0x1000;
     }
 
@@ -1806,99 +1814,76 @@ public:
       dzint tile_y = texel_y / 8;
       dzint tile = vram[32 * tile_y + tile_x + map_base];
 
-      if ((lcdc & (1 << 4)) == 0) {
+      if ((lcdc & 0x10) == 0) {
         tile = sign_extend(tile);
       }
 
-      dzint pixel_x = (texel_x & 0x7) ^ 0x7;
-      dzint pixel_y = (texel_y & 0x7);
+      dzint pixel_x = texel_x & 0x7;
+      dzint pixel_y = texel_y & 0x7;
 
-      dzint addr = 16 * tile + tile_base + 2 * pixel_y;
-      dzint lsbc = vram[addr + 0] >> pixel_x;
-      dzint msbc = vram[addr + 1] >> pixel_x;
-      dzint idxc = (lsbc & 0x1) | (msbc & 0x1) << 1;
-      window->set_pixel(x, y, color(bgp, idxc));
+      dzint index = read_tile(tile_base, tile, pixel_x, pixel_y);
+      window->set_pixel(x, y, color(bgp, index));
     }
   }
 
   void sprites() {
-    dzint height;
-    if (lcdc & (1 << 2)) {
+    dzint height = 8;
+    if (lcdc & 0x04) {
       height = 16;
-    } else {
-      height = 8;
     }
 
-    dzint visible = 0;
-    for (dzint s = 40 - 1; s >= 0; --s) {
-      dzint addr = 4 * s;
-      dzint sy    = dzint(oram[addr + 0]) - 16;
-      dzint sx    = dzint(oram[addr + 1]) - 8;
-      dzint tile = oram[addr + 2];
-      dzint data = oram[addr + 3];
+    dzint rendered = 0;
+    for (dzint entry = 0x9C; entry >= 0; entry -= 4) {
+      dzint sy   = oram[entry + 0] - 16;
+      dzint sx   = oram[entry + 1] - 8;
+      dzint tile = oram[entry + 2];
+      dzint data = oram[entry + 3];
 
       dzint line = ly - sy;
       if (line < 0 || line >= height) {
         continue;
       }
 
-      visible = visible + 1;
+      rendered = rendered + 1;
 
       if (sx <= -8 || sx >= kScreenW) {
         continue;
       }
 
-      dzint palette;
-      if (data & (1 << 4)) {
-        palette = obp1;
-      } else {
-        palette = obp0;
-      }
-
-      if (height == 16) {
+      if (lcdc & 0x04) {
         if (line < 8) {
           tile = tile & 0xFE;
         } else {
           tile = tile | 0x01;
+          line = line - 8;
         }
       }
 
-      for (dzint i = 0; i < 8; ++i) {
-        dzint x = sx + i;
-        dzint y = ly;
-
-        if (x < 0) {
-          continue;
-        }
-        if (x >= kScreenW) {
-          break;
-        }
-
-        dzint pixel_x = i;
-        if (data & (1 << 5)) {
-          pixel_x = pixel_x ^ 0x7;
-        }
-
-        dzint pixel_y = line;
-        if (data & (1 << 6)) {
-          pixel_y = pixel_y ^ 0x7;
-        }
-
-        pixel_x ^= 0x7;
-
-        dzint addr = 16 * tile + 2 * pixel_y;
-        dzint lsbc = vram[addr + 0] >> pixel_x;
-        dzint msbc = vram[addr + 1] >> pixel_x;
-
-        dzint idxc = (lsbc & 0x1) | (msbc & 0x1) << 1;
-        if (idxc == 0) {
-          continue;
-        }
-
-        window->set_pixel(x, y, color(palette, idxc));
+      dzint palette = obp0;
+      if (data & 0x10) {
+        palette = obp1;
       }
 
-      if (visible == 10) {
+      dzint flip_x = 0;
+      if (data & 0x20) {
+        flip_x = 0x7;
+      }
+
+      dzint flip_y = 0;
+      if (data & 0x40) {
+        flip_y = 0x7;
+      }
+
+      dzint pixel_y = line;
+      for (dzint pixel_x = max(0, -sx); pixel_x < min(8, kScreenW - sx); ++pixel_x) {
+        dzint index = read_tile(0, tile, pixel_x ^ flip_x, pixel_y ^ flip_y);
+        if (index == 0) {
+          continue;
+        }
+        window->set_pixel(sx + pixel_x, ly, color(palette, index));
+      }
+
+      if (rendered == 10) {
         break;
       }
     }
