@@ -345,7 +345,7 @@ public:
       case 0x3:
         if (mbc == 1 && mbc_mode == 1) {
           auto bank = (ram_bank << 5);
-          return rom[((bank << 14) & (rom_banks - 1)) | (addr & 0x3FFF)];
+          return rom[(bank & (rom_banks - 1)) << 14 | (addr & 0x3FFF)];
         }
         return rom[addr];
       case 0x4:
@@ -354,7 +354,7 @@ public:
       case 0x7:
         if (mbc == 1) {
           auto bank = (ram_bank << 5) | rom_bank;
-          return rom[((bank << 14) & (rom_banks - 1)) | (addr & 0x3FFF)];
+          return rom[(bank & (rom_banks - 1)) << 14 | (addr & 0x3FFF)];
         }
         return rom[addr];
       case 0x8:
@@ -1834,17 +1834,17 @@ public:
       case 0x03:
         mbc = 1;
         break;
-      case 0x05:
-      case 0x06:
-        mbc = 2;
-        break;
-      case 0x0F:
-      case 0x10:
-      case 0x11:
-      case 0x12:
-      case 0x13:
-        mbc = 3;
-        break;
+      //case 0x05:
+      //case 0x06:
+      //  mbc = 2;
+      //  break;
+      //case 0x0F:
+      //case 0x10:
+      //case 0x11:
+      //case 0x12:
+      //case 0x13:
+      //  mbc = 3;
+      //  break;
       default:
         std::printf("unsupported cartridge type %d\n", int(rom[0x147]));
         return false;
