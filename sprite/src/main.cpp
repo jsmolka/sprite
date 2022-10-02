@@ -368,7 +368,7 @@ public:
       case 0xB:
         if (ram_enable) {
           addr = addr & 0x1FFF;
-          if (mbc_mode == 1) {
+          if (mbc_mode == 1 && ram_bank < ram_banks) {
             addr = addr | (ram_bank << 13);
           }
           return eram[addr];
@@ -583,7 +583,7 @@ public:
       case 0xB:
         if (ram_enable) {
           addr = addr & 0x1FFF;
-          if (mbc_mode == 1) {
+          if (mbc_mode == 1 && ram_bank < ram_banks) {
             addr = addr | (ram_bank << 13);
           }
           eram[addr] = byte;
