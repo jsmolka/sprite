@@ -1837,12 +1837,14 @@ public:
       dzint tile = oram[addr + 2];
       dzint data = oram[addr + 3];
 
-      if (x <= -8 || x >= kScreenW) {
+      dzint line = ly - y;
+      if (line < 0 || line >= height) {
         continue;
       }
 
-      dzint line = ly - y;
-      if (line < 0 || line >= height) {
+      visible = visible + 1;
+
+      if (x <= -8 || x >= kScreenW) {
         continue;
       }
 
@@ -1861,36 +1863,40 @@ public:
         }
       }
 
-      dzint ty = line;
-      if (data & (1 << 6)) {
-        ty = ty ^ 0x7;
-      }
-
       for (dzint i = 0; i < 8; ++i) {
-        dzint tx = x + i;
+        dzint texel_x = x + i;
         if (data & (1 << 5)) {
-          tx = tx ^ 0x7;
+          texel_x = texel_x ^ 0x7;
         }
 
-        if (tx < 0) {
+        dzint texel_y = line;
+        if (data & (1 << 6)) {
+          texel_y = texel_y ^ 0x7;
+        }
+
+
+        if (texel_x < 0) {
           continue;
         }
-        if (tx >= kScreenW) {
+        if (texel_x >= kScreenW) {
           break;
         }
 
-
-        dzint pixel_x = tx & 0x7;
-        dzint pixel_y = ty & 0x7;
+        dzint pixel_x = (texel_x & 0x7) ^ 0x7;
+        dzint pixel_y = (texel_y & 0x7);
 
         dzint addr = 16 * tile + 2 * pixel_y;
         dzint lsbc = vram[addr + 0] >> pixel_x;
         dzint msbc = vram[addr + 1] >> pixel_x;
+
         dzint idxc = (lsbc & 0x1) | (msbc & 0x1) << 1;
-        window->set_pixel(tx, ly, color(palette, idxc));
+        if (idxc == 0) {
+          continue;
+        }
+
+        window->set_pixel(texel_x, ly, color(palette, idxc));
       }
 
-      visible = visible + 1;
       if (visible == 10) {
         break;
       }
