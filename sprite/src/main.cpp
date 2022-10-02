@@ -1874,18 +1874,17 @@ public:
           break;
         }
 
-        dzint texel_x = i;
+        dzint pixel_x = i;
         if (data & (1 << 5)) {
-          texel_x = texel_x ^ 0x7;
+          pixel_x = pixel_x ^ 0x7;
         }
 
-        dzint texel_y = line;
+        dzint pixel_y = line;
         if (data & (1 << 6)) {
-          texel_y = texel_y ^ 0x7;
+          pixel_y = pixel_y ^ 0x7;
         }
 
-        dzint pixel_x = (texel_x & 0x7) ^ 0x7;
-        dzint pixel_y = (texel_y & 0x7);
+        pixel_x ^= 0x7;
 
         dzint addr = 16 * tile + 2 * pixel_y;
         dzint lsbc = vram[addr + 0] >> pixel_x;
