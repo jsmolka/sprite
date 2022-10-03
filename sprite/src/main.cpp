@@ -252,7 +252,7 @@ public:
           value = value | (dzint(sdl_keystate(SDL_SCANCODE_A)) << 1);
           value = value | (dzint(sdl_keystate(SDL_SCANCODE_W)) << 2);
           value = value | (dzint(sdl_keystate(SDL_SCANCODE_S)) << 3);
-        } else {
+        } else if ((joyp & 0x20) == 0) {
           value = value | (dzint(sdl_keystate(SDL_SCANCODE_U)) << 0);
           value = value | (dzint(sdl_keystate(SDL_SCANCODE_H)) << 1);
           value = value | (dzint(sdl_keystate(SDL_SCANCODE_F)) << 2);
