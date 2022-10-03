@@ -247,7 +247,7 @@ public:
     switch (addr) {
       case 0x00: {
         dzint value = joyp & 0b00110000;
-        if ((joyp & (1 << 4)) == 0) {
+        if ((joyp & 0x10) == 0) {
           value = value | (dzint(sdl_keystate(SDL_SCANCODE_D)) << 0);
           value = value | (dzint(sdl_keystate(SDL_SCANCODE_A)) << 1);
           value = value | (dzint(sdl_keystate(SDL_SCANCODE_W)) << 2);
@@ -429,7 +429,7 @@ public:
   void write_byte_io(dzint addr, dzint byte) {
     switch (addr) {
       case 0x00:
-        joyp = byte & 0x11110000;
+        joyp = byte & 0b11110000;
         break;
       case 0x01:
         sb = byte;
