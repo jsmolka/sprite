@@ -1832,7 +1832,6 @@ public:
       height = 16;
     }
 
-    dzint rendered = 0;
     for (dzint entry = 0x9C; entry >= 0; entry -= 4) {
       dzint sy   = oram[entry + 0] - 16;
       dzint sx   = oram[entry + 1] - 8;
@@ -1843,8 +1842,6 @@ public:
       if (line < 0 || line >= height) {
         continue;
       }
-
-      rendered = rendered + 1;
 
       if (sx <= -8 || sx >= kScreenW) {
         continue;
@@ -1881,10 +1878,6 @@ public:
           continue;
         }
         window->set_pixel(sx + pixel_x, ly, color(palette, index));
-      }
-
-      if (rendered == 10) {
-        break;
       }
     }
   }
