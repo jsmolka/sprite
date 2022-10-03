@@ -79,6 +79,7 @@ public:
     delete window;
   }
 
+  dzlist<dzbool> transparent;
   SdlWindow* window = sdl_window("sprite", kScreenW, kScreenH, 2);
 
   dzint a = 0x01;
@@ -1775,10 +1776,13 @@ public:
 
   void scanline() {
     if (lcd_enabled()) {
-      if (lcdc & 0x1) {
+      transparent.clear();
+      transparent.resize(kScreenW, true);
+
+      if (lcdc & 0x01) {
         background();
       }
-      if (lcdc & 0x2) {
+      if (lcdc & 0x02) {
         sprites();
       }
     } else {
@@ -1823,6 +1827,7 @@ public:
 
       dzint index = read_tile(tile_base, tile, pixel_x, pixel_y);
       window->set_pixel(x, y, color(bgp, index));
+      transparent[x] = index == 0;
     }
   }
 
@@ -1877,7 +1882,11 @@ public:
         if (index == 0) {
           continue;
         }
-        window->set_pixel(sx + pixel_x, ly, color(palette, index));
+
+        dzint x = sx + pixel_x;
+        if ((data & 0x80) == 0 || transparent[x]) {
+          window->set_pixel(x, ly, color(palette, index));
+        }
       }
     }
   }
