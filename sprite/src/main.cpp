@@ -1780,10 +1780,13 @@ public:
       transparent.resize(kScreenW, true);
 
       if (lcdc & 0x01) {
-        background();
+        draw_background();
+      }
+      if (lcdc & 0x20) {
+        draw_window();
       }
       if (lcdc & 0x02) {
-        sprites();
+        draw_sprites();
       }
     } else {
       window->clear(kPalette[0]);
@@ -1798,7 +1801,7 @@ public:
     return (lsbc & 0x1) | (msbc & 0x1) << 1;
   }
 
-  void background() {
+  void draw_background() {
     dzint map_base = 0x1800;
     if (lcdc & 0x08) {
       map_base = map_base + 0x0400;
@@ -1831,7 +1834,61 @@ public:
     }
   }
 
-  void sprites() {
+  void draw_window() {
+    dzint wx = this->wx - 7;
+    if (wx >= kScreenW) {
+      return;
+    }
+
+    dzint wy = this->wy;
+    if (wy >= kScreenH) {
+      return;
+    }
+
+    dzint y = ly - wy;
+    if (y < 0) {
+      return;
+    }
+
+    dzint map_base = 0x1800;
+    if (lcdc & 0x40) {
+      map_base = map_base + 0x0400;
+    }
+
+    dzint tile_base = 0x1000;
+    if (lcdc & 0x10) {
+      tile_base = tile_base - 0x1000;
+    }
+
+    for (dzint x = 0; x < kScreenW; ++x) {
+      dzint abs_x = wx + x;
+      if (abs_x < 0) {
+        continue;
+      } else if (abs_x >= kScreenW) {
+        break;
+      }
+
+      dzint texel_x = x;
+      dzint texel_y = y;
+
+      dzint tile_x = texel_x / 8;
+      dzint tile_y = texel_y / 8;
+      dzint tile = vram[32 * tile_y + tile_x + map_base];
+
+      if ((lcdc & 0x10) == 0) {
+        tile = sign_extend(tile);
+      }
+
+      dzint pixel_x = texel_x & 0x7;
+      dzint pixel_y = texel_y & 0x7;
+
+      dzint index = read_tile(tile_base, tile, pixel_x, pixel_y);
+      window->set_pixel(abs_x, y, color(bgp, index));
+      transparent[abs_x] = index == 0;
+    }
+  }
+
+  void draw_sprites() {
     dzint height = 8;
     if (lcdc & 0x04) {
       height = 16;
