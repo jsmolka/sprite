@@ -1860,31 +1860,21 @@ public:
       tile_base = tile_base - 0x1000;
     }
 
-    for (dzint x = 0; x < kScreenW; ++x) {
-      dzint abs_x = wx + x;
-      if (abs_x < 0) {
-        continue;
-      } else if (abs_x >= kScreenW) {
-        break;
-      }
-
-      dzint texel_x = x;
-      dzint texel_y = y;
-
-      dzint tile_x = texel_x / 8;
-      dzint tile_y = texel_y / 8;
+    for (dzint x = max(0, -wx); x < min(kScreenW, kScreenW - wx); ++x) {
+      dzint tile_x = x / 8;
+      dzint tile_y = y / 8;
       dzint tile = vram[32 * tile_y + tile_x + map_base];
 
       if ((lcdc & 0x10) == 0) {
         tile = sign_extend(tile);
       }
 
-      dzint pixel_x = texel_x & 0x7;
-      dzint pixel_y = texel_y & 0x7;
+      dzint pixel_x = x & 0x7;
+      dzint pixel_y = y & 0x7;
 
       dzint index = read_tile(tile_base, tile, pixel_x, pixel_y);
-      window->set_pixel(abs_x, y, color(bgp, index));
-      transparent[abs_x] = index == 0;
+      window->set_pixel(wx + x, ly, color(bgp, index));
+      transparent[wx + x] = index == 0;
     }
   }
 
