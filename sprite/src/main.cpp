@@ -344,18 +344,13 @@ public:
       case 0x1:
       case 0x2:
       case 0x3:
-        if (mbc == 1 && mbc_mode == 1) {
-          auto bank = (ram_bank << 5);
-          return rom[(bank & (rom_banks - 1)) << 14 | (addr & 0x3FFF)];
-        }
         return rom[addr];
       case 0x4:
       case 0x5:
       case 0x6:
       case 0x7:
         if (mbc == 1 || mbc == 3) {
-          auto bank = (ram_bank << 5) | rom_bank;
-          return rom[(bank & (rom_banks - 1)) << 14 | (addr & 0x3FFF)];
+          addr = ((rom_bank & (rom_banks - 1)) << 14) | (addr & 0x3FFF);
         }
         return rom[addr];
       case 0x8:
@@ -368,11 +363,15 @@ public:
       case 0xA:
       case 0xB:
         if (ram_enable) {
-          addr = addr & 0x1FFF;
-          if (mbc_mode == 1 && ram_bank < ram_banks) {
-            addr = addr | (ram_bank << 13);
+          if (mbc == 3 && ram_bank > 7) {
+            return 0;
+          } else {
+            addr = addr & 0x1FFF;
+            if (mbc_mode == 1 && ram_bank < ram_banks) {
+              addr = addr | (ram_bank << 13);
+            }
+            return eram[addr];
           }
-          return eram[addr];
         }
         break;
       case 0xC:
@@ -565,8 +564,12 @@ public:
         break;
       case 0x4:
       case 0x5:
-        if ((mbc == 1 || mbc == 3) && ram_exists) {
-          ram_bank = byte & 0x3;
+        if (ram_exists) {
+          if (mbc == 1) {
+            ram_bank = byte & 0x3;
+          } else if (mbc == 3) {
+            ram_bank = byte;
+          }
         }
         break;
       case 0x6:
@@ -585,11 +588,15 @@ public:
       case 0xA:
       case 0xB:
         if (ram_enable) {
-          addr = addr & 0x1FFF;
-          if (mbc_mode == 1 && ram_bank < ram_banks) {
-            addr = addr | (ram_bank << 13);
+          if (mbc == 3 && ram_bank > 7) {
+            return;
+          } else {
+            addr = addr & 0x1FFF;
+            if (mbc_mode == 1 && ram_bank < ram_banks) {
+              addr = addr | (ram_bank << 13);
+            }
+            eram[addr] = byte;
           }
-          eram[addr] = byte;
         }
         break;
       case 0xC:
