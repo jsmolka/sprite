@@ -91,11 +91,12 @@ public:
   dzint h = 0x01;
   dzint l = 0x4D;
 
-  dzint pc   = 0x0100;
-  dzint sp   = 0xFFFE;
-  dzint halt = 0;
-  dzint ie   = 0;
-  dzint ime  = 1;
+  dzint pc     = 0x0100;
+  dzint sp     = 0xFFFE;
+  dzint halt   = 0;
+  dzint ie     = 0;
+  dzint ime    = 1;
+  dzint cycles = 0;
 
   dzint mbc        = 0;
   dzint mbc_mode   = 0;
@@ -1706,7 +1707,7 @@ public:
   }
 
   void tick(dzint cycles) {
-    constexpr auto kDiv = 256;
+    this->cycles = this->cycles + cycles;
 
     if (tac & 0b100) {
       dzint freq = 1;
@@ -1730,9 +1731,9 @@ public:
     }
 
     div_cycles = div_cycles + cycles;
-    while (div_cycles >= kDiv) {
+    while (div_cycles >= 256) {
       div = (div + 1) & 0xFF;
-      div_cycles = div_cycles - kDiv;
+      div_cycles = div_cycles - 256;
     }
 
     ppu_cycles = ppu_cycles + cycles;
@@ -2025,13 +2026,30 @@ public:
     return true;
   }
 
+  void frame() {
+    while (true) {
+      cpu();
+      irq();
+
+      if (cycles >= 70224) {
+        cycles = cycles - 70224;
+        break;
+      }
+    }
+  }
+
   auto run(const dzbytes& rom) -> dzint {
     if (!boot(rom)) {
       return 1;
     }
+
     while (dz::sdl_events()) {
-      cpu();
-      irq();
+      dzint time = dz::time();
+      frame();
+      dzint wait = 16 - dz::time() + time;
+      if (wait > 0) {
+        dz::sleep(wait);
+      }
     }
     return 0;
   }
