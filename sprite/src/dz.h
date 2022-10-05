@@ -1,11 +1,13 @@
 #pragma once
 
 #include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <optional>
 #include <stdexcept>
+#include <thread>
 #include <vector>
 
 #if _MSC_VER
@@ -25,6 +27,8 @@ using dzbytes = dzlist<std::uint8_t>;
 inline constexpr auto noop = 0;
 inline constexpr auto null = std::nullopt;
 
+namespace dz {
+
 inline auto read_bin(const std::filesystem::path& file) -> std::optional<dzbytes> {
   auto stream = std::ifstream(file, std::ios::binary);
   if (!stream.is_open() || !stream) {
@@ -40,6 +44,15 @@ inline auto read_bin(const std::filesystem::path& file) -> std::optional<dzbytes
     return std::nullopt;
   }
   return bytes;
+}
+
+inline auto time() -> dzint {
+  using namespace std::chrono;
+  return duration_cast<milliseconds>(high_resolution_clock::now().time_since_epoch()).count();
+}
+
+inline void sleep(dzint ms) {
+  std::this_thread::sleep_for(std::chrono::milliseconds(ms));
 }
 
 class SdlWindow {
@@ -172,3 +185,5 @@ inline auto sdl_keystate(dzint key) -> dzbool {
 inline auto sdl_window(const char* title, dzint w, dzint h, dzint scale) -> SdlWindow* {
   return new SdlWindow(title, w, h, scale);
 }
+
+}  // namespace dz

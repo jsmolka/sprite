@@ -42,7 +42,7 @@ inline constexpr dzint kModeVBlank = 1;
 inline constexpr dzint kModeOam    = 2;
 inline constexpr dzint kModeVram   = 3;
 
-inline auto min(dzint a, dzint b) -> dzint {
+auto min(dzint a, dzint b) -> dzint {
   if (a < b) {
     return a;
   } else {
@@ -50,7 +50,7 @@ inline auto min(dzint a, dzint b) -> dzint {
   }
 }
 
-inline auto max(dzint a, dzint b) -> dzint {
+auto max(dzint a, dzint b) -> dzint {
   if (a > b) {
     return a;
   } else {
@@ -58,11 +58,11 @@ inline auto max(dzint a, dzint b) -> dzint {
   }
 }
 
-inline auto sign_extend(dzint value) -> dzint {
+auto sign_extend(dzint value) -> dzint {
   return (value << 56) >> 56;
 }
 
-inline auto color(dzint palette, dzint index) -> dzint {
+auto color(dzint palette, dzint index) -> dzint {
   return kPalette[(palette >> (2 * index)) & 0x3];
 }
 
@@ -80,7 +80,7 @@ public:
   }
 
   dzlist<dzbool> transparent;
-  SdlWindow* window = sdl_window("sprite", kScreenW, kScreenH, 2);
+  dz::SdlWindow* window = dz::sdl_window("sprite", kScreenW, kScreenH, 2);
 
   dzint a = 0x01;
   dzint f = 0xB0;
@@ -248,15 +248,15 @@ public:
       case 0x00: {
         dzint value = joyp & 0b00110000;
         if ((joyp & 0x10) == 0) {
-          value = value | (dzint(sdl_keystate(SDL_SCANCODE_D)) << 0);
-          value = value | (dzint(sdl_keystate(SDL_SCANCODE_A)) << 1);
-          value = value | (dzint(sdl_keystate(SDL_SCANCODE_W)) << 2);
-          value = value | (dzint(sdl_keystate(SDL_SCANCODE_S)) << 3);
+          value = value | (dzint(dz::sdl_keystate(SDL_SCANCODE_D)) << 0);
+          value = value | (dzint(dz::sdl_keystate(SDL_SCANCODE_A)) << 1);
+          value = value | (dzint(dz::sdl_keystate(SDL_SCANCODE_W)) << 2);
+          value = value | (dzint(dz::sdl_keystate(SDL_SCANCODE_S)) << 3);
         } else if ((joyp & 0x20) == 0) {
-          value = value | (dzint(sdl_keystate(SDL_SCANCODE_U)) << 0);
-          value = value | (dzint(sdl_keystate(SDL_SCANCODE_H)) << 1);
-          value = value | (dzint(sdl_keystate(SDL_SCANCODE_F)) << 2);
-          value = value | (dzint(sdl_keystate(SDL_SCANCODE_G)) << 3);
+          value = value | (dzint(dz::sdl_keystate(SDL_SCANCODE_U)) << 0);
+          value = value | (dzint(dz::sdl_keystate(SDL_SCANCODE_H)) << 1);
+          value = value | (dzint(dz::sdl_keystate(SDL_SCANCODE_F)) << 2);
+          value = value | (dzint(dz::sdl_keystate(SDL_SCANCODE_G)) << 3);
         }
         return (value ^ 0b00001111) | 0b11000000;
       }
@@ -2029,7 +2029,7 @@ public:
     if (!boot(rom)) {
       return 1;
     }
-    while (sdl_events()) {
+    while (dz::sdl_events()) {
       cpu();
       irq();
     }
@@ -2045,7 +2045,7 @@ auto main(int argc, char* argv[]) -> int {
     return 1;
   }
 
-  auto rom = read_bin(argv[1]);
+  auto rom = dz::read_bin(argv[1]);
   if (!rom) {
     std::printf("cannot read '%s'\n", argv[1]);
     return 1;
