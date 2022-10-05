@@ -1825,8 +1825,8 @@ public:
       dzint texel_x = (x + scx) & 0xFF;
       dzint texel_y = (y + scy) & 0xFF;
 
-      dzint tile_x = texel_x / 8;
-      dzint tile_y = texel_y / 8;
+      dzint tile_x = texel_x >> 3;
+      dzint tile_y = texel_y >> 3;
       dzint tile = vram[32 * tile_y + tile_x + map_base];
 
       if ((lcdc & 0x10) == 0) {
@@ -1869,8 +1869,8 @@ public:
     }
 
     for (dzint x = max(0, -wx); x < min(kScreenW, kScreenW - wx); ++x) {
-      dzint tile_x = x / 8;
-      dzint tile_y = y / 8;
+      dzint tile_x = x >> 3;
+      dzint tile_y = y >> 3;
       dzint tile = vram[32 * tile_y + tile_x + map_base];
 
       if ((lcdc & 0x10) == 0) {
