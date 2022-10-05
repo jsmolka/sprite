@@ -342,7 +342,7 @@ class GameBoy:
               case kModeOam:
               case kModeVram:
                 return 0xFF
-          return oram[addr - 0xFE00]
+          return this.oram[addr - 0xFE00]
         elif addr < 0xFF00:
           return 0xFF
         elif addr < 0xFF80:
