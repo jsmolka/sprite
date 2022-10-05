@@ -1421,7 +1421,7 @@ class GameBoy:
       var pixel_y = y & 0x7
 
       var index = this.read_tile(tile_base, tile, pixel_x, pixel_y)
-      this.window.set_pixel(wx + x, ly, color(this.bgp, index))
+      this.window.set_pixel(wx + x, this.ly, color(this.bgp, index))
       this.transparent[wx + x] = index == 0
   
   def draw_sprites():
