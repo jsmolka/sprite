@@ -248,12 +248,12 @@ public:
     switch (addr) {
       case 0x00: {
         dzint value = joyp & 0b00110000;
-        if ((joyp & 0x10) == 0) {
+        if ((value & 0x10) == 0) {
           value = value | (dzint(dz::sdl_keystate(SDL_SCANCODE_D)) << 0);
           value = value | (dzint(dz::sdl_keystate(SDL_SCANCODE_A)) << 1);
           value = value | (dzint(dz::sdl_keystate(SDL_SCANCODE_W)) << 2);
           value = value | (dzint(dz::sdl_keystate(SDL_SCANCODE_S)) << 3);
-        } else if ((joyp & 0x20) == 0) {
+        } else if ((value & 0x20) == 0) {
           value = value | (dzint(dz::sdl_keystate(SDL_SCANCODE_U)) << 0);
           value = value | (dzint(dz::sdl_keystate(SDL_SCANCODE_H)) << 1);
           value = value | (dzint(dz::sdl_keystate(SDL_SCANCODE_F)) << 2);
