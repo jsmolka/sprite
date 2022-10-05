@@ -43,6 +43,12 @@ def min(a, b):
     return a
   else:
     return b
+  
+def max(a, b):
+  if a > b:
+    return a
+  else:
+    return b
     
 def sign_extend(value):
   return (value << 56) >> 56
@@ -52,6 +58,7 @@ def color(palette, index):
 
 class GameBoy:
   def init():
+    this.transparent = []
     this.window = sdl_window("sprite", kScreenW, kScreenH, 2)
   
     this.a = 0x01
@@ -63,11 +70,21 @@ class GameBoy:
     this.h = 0x01
     this.l = 0x4D
 
-    this.pc   = 0x0100
-    this.sp   = 0xFFFE
-    this.halt = 0
-    this.ie   = 0
-    this.ime  = 1
+    this.pc     = 0x0100
+    this.sp     = 0xFFFE
+    this.halt   = 0
+    this.ie     = 0
+    this.ime    = 1
+    this.cycles = 0
+    
+    this.mbc        = 0
+    this.mbc_mode   = 0
+    this.rom_bank   = 1
+    this.rom_banks  = 0
+    this.ram_exists = 0
+    this.ram_enable = 0
+    this.ram_bank   = 0
+    this.ram_banks  = 0
 
     this.rom = null
     this.vram = bytes()
@@ -75,7 +92,6 @@ class GameBoy:
     this.wram = bytes()
     this.wram.resize(0x2000, 0)
     this.eram = bytes()
-    this.eram.resize(0x2000, 0)
     this.oram = bytes()
     this.oram.resize(0x0100, 0)
     this.hram = bytes()
@@ -189,18 +205,18 @@ class GameBoy:
     this.f = f
     
   def lcd_enabled():
-    return this.lcdc & (1 << 7)
+    return this.lcdc & 0x80
 
   def read_byte_io(addr):
     switch addr:
       case 0x00:
         var value = this.joyp & 0b00110000
-        if (this.joyp & (1 << 4)) == 0:
+        if (value & 0x10) == 0:
           value = value | (sdl_keystate( 7) << 0)
           value = value | (sdl_keystate( 4) << 1)
           value = value | (sdl_keystate(26) << 2)
           value = value | (sdl_keystate(22) << 3)
-        else:
+        elif (value & 0x20) == 0:
           value = value | (sdl_keystate(24) << 0)
           value = value | (sdl_keystate(11) << 1)
           value = value | (sdl_keystate( 9) << 2)
@@ -293,7 +309,9 @@ class GameBoy:
       case 0x5:
       case 0x6:
       case 0x7:
-        return this.rom[addr]  # Todo: implement MBC
+        if this.mbc == 1 || this.mbc == 3:
+          addr = ((this.rom_bank & (this.rom_banks - 1)) << 14) | (addr & 0x3FFF)
+        return this.rom[addr]
       case 0x8:
       case 0x9:
         if this.lcd_enabled() && this.ppu_mode == kModeVram:
@@ -302,7 +320,14 @@ class GameBoy:
           return this.vram[addr - 0x8000]
       case 0xA:
       case 0xB:
-        return this.eram[addr - 0xA000]
+        if this.ram_enable:
+          if this.mbc == 3 && this.ram_bank > 7:
+            return 0
+          else:
+            addr = addr & 0x1FFF
+            if this.mbc_mode == 1 && this.ram_bank < this.ram_banks:
+              addr = addr | (this.ram_bank << 13)
+            return this.eram[addr]
       case 0xC:
       case 0xD:
         return this.wram[addr - 0xC000]
@@ -347,7 +372,7 @@ class GameBoy:
   def write_byte_io(addr, byte):
     switch addr:
       case 0x00:
-        this.joyp = byte & 0x11110000
+        this.joyp = byte & 0b11110000
       case 0x01:
         this.sb = byte
       case 0x02:
@@ -430,13 +455,25 @@ class GameBoy:
     switch addr >> 12:
       case 0x0:
       case 0x1:
+        if (this.mbc == 1 || this.mbc == 3) && this.ram_exists:
+          this.ram_enable = (byte & 0xF) == 0xA
       case 0x2:
       case 0x3:
+        if this.mbc == 1:
+          this.rom_bank = max(1, byte & 0x1F)
+        elif this.mbc == 3:
+          this.rom_bank = max(1, byte & 0x7F)
       case 0x4:
       case 0x5:
+        if this.ram_exists:
+          if this.mbc == 1:
+            this.ram_bank = byte & 0x3
+          elif this.mbc == 3:
+            this.ram_bank = byte
       case 0x6:
       case 0x7:
-        noop
+        if this.mbc == 1:
+          this.mbc_mode = byte & 0x1
       case 0x8:
       case 0x9:
         if this.lcd_enabled() && this.ppu_mode == kModeVram:
@@ -444,7 +481,14 @@ class GameBoy:
         this.vram[addr - 0x8000] = byte
       case 0xA:
       case 0xB:
-        this.eram[addr - 0xA000] = byte
+        if this.ram_enable:
+          if this.mbc == 3 && this.ram_bank > 7:
+            return
+          else:
+            addr = addr & 0x1FFF
+            if this.mbc_mode == 1 && this.ram_bank < this.ram_banks:
+              addr = addr | (this.ram_bank << 13)
+            this.eram[addr] = byte
       case 0xC:
       case 0xD:
         this.wram[addr - 0xC000] = byte
@@ -1237,7 +1281,7 @@ class GameBoy:
       this.interrupt_stat(kStatLine)
 
   def tick(cycles):
-    var kDiv = 256
+    this.cycles = this.cycles + cycles
 
     if this.tac & 0b100:
       var freq
@@ -1261,9 +1305,9 @@ class GameBoy:
           this.interrupt(kInterruptTimer)
 
     this.div_cycles = this.div_cycles + cycles
-    while this.div_cycles >= kDiv:
+    while this.div_cycles >= 256:
       this.div = (this.div + 1) & 0xFF
-      this.div_cycles = this.div_cycles - kDiv
+      this.div_cycles = this.div_cycles - 256
       
     this.ppu_cycles = this.ppu_cycles + cycles
     switch this.ppu_mode:
@@ -1297,18 +1341,32 @@ class GameBoy:
             
   def scanline():
     if this.lcd_enabled():
+      this.transparent.clear()
+      this.transparent.resize(kScreenW, true)
+    
       if this.lcdc & 0x1:
-        this.background()
+        this.draw_background()
+      if this.lcdc & 0x20:
+        this.draw_window()
+      if this.lcdc & 0x02:
+        this.draw_sprites()
     else:
       this.window.clear(kPalette[0])
+      
+  def read_tile(base, tile, x, y):
+    var addr = 16 * tile + 2 * y + base
+    var lsbc = this.vram[addr + 0] >> (x ^ 0x7)
+    var msbc = this.vram[addr + 1] >> (x ^ 0x7)
 
-  def background():
+    return (lsbc & 0x1) | (msbc & 0x1) << 1
+
+  def draw_background():
     var map_base = 0x1800
-    if this.lcdc & (1 << 3):
+    if this.lcdc & 0x08:
       map_base = map_base + 0x0400
 
     var tile_base = 0x1000
-    if this.lcdc & (1 << 4):
+    if this.lcdc & 0x10:
       tile_base = tile_base - 0x1000
 
     var y = this.ly
@@ -1320,25 +1378,202 @@ class GameBoy:
       var tile_y = texel_y >> 3
       var tile = this.vram[32 * tile_y + tile_x + map_base]
 
-      if (this.lcdc & (1 << 4)) == 0:
+      if (this.lcdc & 0x10) == 0:
         tile = sign_extend(tile)
 
-      var pixel_x = (texel_x & 0x7) ^ 0x7
-      var pixel_y = (texel_y & 0x7)
+      var pixel_x = texel_x & 0x7
+      var pixel_y = texel_y & 0x7
 
-      var addr = 16 * tile + tile_base + 2 * pixel_y
-      var lsbc = this.vram[addr + 0] >> pixel_x
-      var msbc = this.vram[addr + 1] >> pixel_x
-      var idxc = (lsbc & 0x1) | (msbc & 0x1) << 1
-      this.window.set_pixel(x, y, color(this.bgp, idxc))
+      var index = this.read_tile(tile_base, tile, pixel_x, pixel_y)
+      this.window.set_pixel(x, y, color(this.bgp, index))
+      this.transparent[x] = index == 0
+      
+  def draw_window():
+    var wx = this.wx - 7
+    if wx >= kScreenW:
+      return
 
-  def run(rom):
+    var wy = this.wy
+    if wy >= kScreenH:
+      return
+
+    var y = this.ly - wy
+    if y < 0:
+      return
+
+    var map_base = 0x1800
+    if this.lcdc & 0x40:
+      map_base = map_base + 0x0400
+
+    var tile_base = 0x1000
+    if this.lcdc & 0x10:
+      tile_base = tile_base - 0x1000
+
+    for x in max(0, -wx) .. min(kScreenW, kScreenW - wx):
+      var tile_x = x / 8
+      var tile_y = y / 8
+      var tile = this.vram[32 * tile_y + tile_x + map_base]
+
+      if (this.lcdc & 0x10) == 0:
+        tile = sign_extend(tile)
+
+      var pixel_x = x & 0x7
+      var pixel_y = y & 0x7
+
+      var index = this.read_tile(tile_base, tile, pixel_x, pixel_y)
+      this.window.set_pixel(wx + x, ly, color(this.bgp, index))
+      this.transparent[wx + x] = index == 0
+  
+  def draw_sprites():
+    var height = 8
+    if this.lcdc & 0x04:
+      height = 16
+      
+    for entry in range(0x9C, -4, -4):
+      var sy   = this.oram[entry + 0] - 16
+      var sx   = this.oram[entry + 1] - 8
+      var tile = this.oram[entry + 2]
+      var data = this.oram[entry + 3]
+
+      var line = this.ly - sy
+      if line < 0 || line >= height:
+        continue
+
+      if sx <= -8 || sx >= kScreenW:
+        continue
+
+      if this.lcdc & 0x04:
+        if line < 8:
+          tile = tile & 0xFE
+        else:
+          tile = tile | 0x01
+          line = line - 8
+
+      var palette = this.obp0
+      if data & 0x10:
+        palette = this.obp1
+
+      var flip_x = 0
+      if data & 0x20:
+        flip_x = 0x7
+
+      var flip_y = 0
+      if data & 0x40:
+        flip_y = 0x7
+
+      var pixel_y = line
+      for pixel_x in max(0, -sx) .. min(8, kScreenW - sx):
+        var index = this.read_tile(0, tile, pixel_x ^ flip_x, pixel_y ^ flip_y)
+        if index == 0:
+          continue
+
+        var x = sx + pixel_x
+        if (data & 0x80) == 0 || this.transparent[x]:
+          this.window.set_pixel(x, this.ly, color(palette, index))
+
+  def boot(rom):
     this.rom = rom
-    this.rom.resize(0x8000, 0)
+    if rom.size() < 0x8000:
+      print("rom too small")
+      return false
+      
+    switch this.rom[0x147]:
+      case 0x00:
+      case 0x08:
+      case 0x09:
+        this.mbc = 0
+      case 0x01:
+      case 0x02:
+      case 0x03:
+        this.mbc = 1
+      case 0x0F:
+      case 0x10:
+      case 0x11:
+      case 0x12:
+      case 0x13:
+        this.mbc = 3
+      default:
+        print("unsupported cartridge type", this.rom[0x147])
+        return false
 
-    while sdl_events():
+    switch this.rom[0x148]:
+      case 0x00:
+        this.rom_banks = 2
+      case 0x01:
+        this.rom_banks = 4
+      case 0x02:
+        this.rom_banks = 8
+      case 0x03:
+        this.rom_banks = 16
+      case 0x04:
+        this.rom_banks = 32
+      case 0x05:
+        this.rom_banks = 64
+      case 0x06:
+        this.rom_banks = 128
+      case 0x07:
+        this.rom_banks = 256
+      case 0x08:
+        this.rom_banks = 512
+      default:
+        print("unsupported rom size", this.rom[0x148])
+        return false
+
+    if 0x4000 * this.rom_banks != this.rom.size():
+      print("expected rom size", 0x4000 * this.rom_banks, "but got", this.rom.size())
+      return false
+
+    switch rom[0x147]:
+      case 0x02:
+      case 0x03:
+      case 0x08:
+      case 0x09:
+      case 0x0C:
+      case 0x0D:
+      case 0x10:
+      case 0x12:
+      case 0x13:
+        this.ram_exists = 1
+
+    if this.ram_exists:
+      switch this.rom[0x149]:
+        case 0x00:
+          this.ram_banks = 0
+        case 0x02:
+          this.ram_banks = 1
+        case 0x03:
+          this.ram_banks = 4
+        case 0x04:
+          this.ram_banks = 16
+        case 0x05:
+          this.ram_banks =8
+        default:
+          print("unsupported ram size", this.rom[0x149])
+          return false
+
+      this.eram.resize(0x2000 * this.ram_banks, 0xFF)
+
+    return true
+    
+  def frame():
+    while true:
       this.cpu()
       this.irq()
+      
+      if this.cycles >= 70224:
+        this.cycles = this.cycles - 70224
+        break
+
+  def run(rom):
+    if !this.boot(rom):
+      return 1
+      
+    while sdl_events():
+      var begin = time()
+      this.frame()
+      var wait = 16 - time() + begin
+      if wait > 0:
+        sleep(wait)
 
 def main():
   var args = arguments()
