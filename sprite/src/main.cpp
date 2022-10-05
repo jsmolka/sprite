@@ -241,7 +241,7 @@ public:
   }
 
   auto lcd_enabled() const -> dzbool {
-    return lcdc & (1 << 7);
+    return lcdc & 0x80;
   }
 
   auto read_byte_io(dzint addr) const -> dzint {
