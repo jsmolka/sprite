@@ -1907,6 +1907,10 @@ public:
         continue;
       }
 
+      if (data & 0x40) {
+        line = line ^ (height - 1);
+      }
+
       if (lcdc & 0x04) {
         if (line < 8) {
           tile = tile & 0xFE;
@@ -1926,14 +1930,9 @@ public:
         flip_x = 0x7;
       }
 
-      dzint flip_y = 0;
-      if (data & 0x40) {
-        flip_y = 0x7;
-      }
-
       dzint pixel_y = line;
       for (dzint pixel_x = max(0, -sx); pixel_x < min(8, kScreenW - sx); ++pixel_x) {
-        dzint index = read_tile(0, tile, pixel_x ^ flip_x, pixel_y ^ flip_y);
+        dzint index = read_tile(0, tile, pixel_x ^ flip_x, pixel_y);
         if (index == 0) {
           continue;
         }

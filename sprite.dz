@@ -1441,6 +1441,9 @@ class GameBoy:
 
       if sx <= -8 || sx >= kScreenW:
         continue
+        
+      if data & 0x40:
+        line = line ^ (height - 1)
 
       if this.lcdc & 0x04:
         if line < 8:
@@ -1457,13 +1460,9 @@ class GameBoy:
       if data & 0x20:
         flip_x = 0x7
 
-      var flip_y = 0
-      if data & 0x40:
-        flip_y = 0x7
-
       var pixel_y = line
       for pixel_x in max(0, -sx) .. min(8, kScreenW - sx):
-        var index = this.read_tile(0, tile, pixel_x ^ flip_x, pixel_y ^ flip_y)
+        var index = this.read_tile(0, tile, pixel_x ^ flip_x, pixel_y)
         if index == 0:
           continue
 
