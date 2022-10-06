@@ -1736,48 +1736,50 @@ public:
       div_cycles = div_cycles - 256;
     }
 
-    ppu_cycles = ppu_cycles + cycles;
-    switch (ppu_mode) {
-      case kModeOam: {
-        if (ppu_cycles >= 80) {
-          ppu_cycles = ppu_cycles - 80;
-          set_mode(kModeVram);
-        }
-        break;
-      }
-      case kModeVram: {
-        if (ppu_cycles >= 172) {
-          ppu_cycles = ppu_cycles - 172;
-          set_mode(kModeHBlank);
-          scanline();
-        }
-        break;
-      }
-      case kModeHBlank: {
-        if (ppu_cycles >= 204) {
-          ppu_cycles = ppu_cycles - 204;
-
-          increment_line();
-          if (ly == kScreenH) {
-            set_mode(kModeVBlank);
-            window->render();
-          } else {
-            set_mode(kModeOam);
+    if (lcd_enabled()) {
+      ppu_cycles = ppu_cycles + cycles;
+      switch (ppu_mode) {
+        case kModeOam: {
+          if (ppu_cycles >= 80) {
+            ppu_cycles = ppu_cycles - 80;
+            set_mode(kModeVram);
           }
+          break;
         }
-        break;
-      }
-      case kModeVBlank: {
-        if (ppu_cycles >= 456) {
-          ppu_cycles = ppu_cycles - 456;
-
-          increment_line();
-          if (ly == kScreenH + 10) {
-            ly = 0;
-            set_mode(kModeOam);
+        case kModeVram: {
+          if (ppu_cycles >= 172) {
+            ppu_cycles = ppu_cycles - 172;
+            set_mode(kModeHBlank);
+            scanline();
           }
+          break;
         }
-        break;
+        case kModeHBlank: {
+          if (ppu_cycles >= 204) {
+            ppu_cycles = ppu_cycles - 204;
+
+            increment_line();
+            if (ly == kScreenH) {
+              set_mode(kModeVBlank);
+              window->render();
+            } else {
+              set_mode(kModeOam);
+            }
+          }
+          break;
+        }
+        case kModeVBlank: {
+          if (ppu_cycles >= 456) {
+            ppu_cycles = ppu_cycles - 456;
+
+            increment_line();
+            if (ly == kScreenH + 10) {
+              ly = 0;
+              set_mode(kModeOam);
+            }
+          }
+          break;
+        }
       }
     }
   }

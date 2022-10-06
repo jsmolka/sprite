@@ -1309,35 +1309,36 @@ class GameBoy:
       this.div = (this.div + 1) & 0xFF
       this.div_cycles = this.div_cycles - 256
 
-    this.ppu_cycles = this.ppu_cycles + cycles
-    switch this.ppu_mode:
-      case kModeOam:
-        if this.ppu_cycles >= 80:
-          this.ppu_cycles = this.ppu_cycles - 80
-          this.set_mode(kModeVram)
-      case kModeVram:
-        if this.ppu_cycles >= 172:
-          this.ppu_cycles = this.ppu_cycles - 172
-          this.set_mode(kModeHBlank)
-          this.scanline()
-      case kModeHBlank:
-        if this.ppu_cycles >= 204:
-          this.ppu_cycles = this.ppu_cycles - 204
+    if this.lcd_enabled():
+      this.ppu_cycles = this.ppu_cycles + cycles
+      switch this.ppu_mode:
+        case kModeOam:
+          if this.ppu_cycles >= 80:
+            this.ppu_cycles = this.ppu_cycles - 80
+            this.set_mode(kModeVram)
+        case kModeVram:
+          if this.ppu_cycles >= 172:
+            this.ppu_cycles = this.ppu_cycles - 172
+            this.set_mode(kModeHBlank)
+            this.scanline()
+        case kModeHBlank:
+          if this.ppu_cycles >= 204:
+            this.ppu_cycles = this.ppu_cycles - 204
 
-          this.increment_line()
-          if this.ly == kScreenH:
-            this.set_mode(kModeVBlank)
-            this.window.render()
-          else:
-            this.set_mode(kModeOam)
-      case kModeVBlank:
-        if this.ppu_cycles >= 456:
-          this.ppu_cycles = this.ppu_cycles - 456
+            this.increment_line()
+            if this.ly == kScreenH:
+              this.set_mode(kModeVBlank)
+              this.window.render()
+            else:
+              this.set_mode(kModeOam)
+        case kModeVBlank:
+          if this.ppu_cycles >= 456:
+            this.ppu_cycles = this.ppu_cycles - 456
 
-          this.increment_line()
-          if this.ly == kScreenH + 10:
-            this.ly = 0
-            this.set_mode(kModeOam)
+            this.increment_line()
+            if this.ly == kScreenH + 10:
+              this.ly = 0
+              this.set_mode(kModeOam)
 
   def scanline():
     if this.lcd_enabled():
