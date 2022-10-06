@@ -1569,11 +1569,7 @@ class GameBoy:
       return 1
 
     while sdl_events():
-      var begin = time()
       this.frame()
-      var wait = 16 - time() + begin
-      if wait > 0:
-        sleep(wait)
 
 def main():
   var args = arguments()
