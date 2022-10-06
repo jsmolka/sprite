@@ -43,16 +43,16 @@ def min(a, b):
     return a
   else:
     return b
-  
+
 def max(a, b):
   if a > b:
     return a
   else:
     return b
-    
+
 def sign_extend(value):
   return (value << 56) >> 56
-  
+
 def color(palette, index):
   return kPalette[(palette >> (2 * index)) & 0x3]
 
@@ -60,7 +60,7 @@ class GameBoy:
   def init():
     this.transparent = []
     this.window = sdl_window("sprite", kScreenW, kScreenH, 2)
-  
+
     this.a = 0x01
     this.f = 0xB0
     this.b = 0x00
@@ -76,7 +76,7 @@ class GameBoy:
     this.ie     = 0
     this.ime    = 1
     this.cycles = 0
-    
+
     this.mbc        = 0
     this.mbc_mode   = 0
     this.rom_bank   = 1
@@ -203,7 +203,7 @@ class GameBoy:
       else:
         f = f & ~0x10
     this.f = f
-    
+
   def lcd_enabled():
     return this.lcdc & 0x80
 
@@ -536,7 +536,7 @@ class GameBoy:
     var value = this.hl() + other
     this.set_f(null, 0, (this.hl() ^ other ^ value) & 0x1000, value & 0xFFFF0000)
     this.set_hl(value)
-    
+
   def add_signed_byte(value):
     var byte = this.read_signed_byte_pc()
     this.set_f(0, 0, (value & 0xF) + (byte & 0xF) > 0xF, (value & 0xFF) + (byte & 0xFF) > 0xFF)
@@ -1169,7 +1169,7 @@ class GameBoy:
         operand = this.read_byte(this.hl())
       case 0x7:
         operand = this.a
-        
+
     switch opcode & 0xC7:
       case 0x06:
       case 0x86:
@@ -1256,14 +1256,14 @@ class GameBoy:
             this.if_ = this.if_ & ~mask
             this.rst(0x40 + 8 * bit)
             break
-            
+
   def interrupt(mask):
     this.if_ = this.if_ | mask
-    
+
   def interrupt_stat(mask):
     if this.stat & mask:
       this.interrupt(kInterruptStat)
-      
+
   def set_mode(mode):
     switch mode:
       case kModeOam:
@@ -1274,7 +1274,7 @@ class GameBoy:
         this.interrupt(kInterruptVBlank)
         this.interrupt_stat(kStatVBlank)
     this.ppu_mode = mode
-    
+
   def increment_line():
     this.ly = this.ly + 1
     if this.ly == this.lyc:
@@ -1308,7 +1308,7 @@ class GameBoy:
     while this.div_cycles >= 256:
       this.div = (this.div + 1) & 0xFF
       this.div_cycles = this.div_cycles - 256
-      
+
     this.ppu_cycles = this.ppu_cycles + cycles
     switch this.ppu_mode:
       case kModeOam:
@@ -1338,12 +1338,12 @@ class GameBoy:
           if this.ly == kScreenH + 10:
             this.ly = 0
             this.set_mode(kModeOam)
-            
+
   def scanline():
     if this.lcd_enabled():
       this.transparent.clear()
       this.transparent.resize(kScreenW, true)
-    
+
       if this.lcdc & 0x1:
         this.draw_background()
       if this.lcdc & 0x20:
@@ -1352,7 +1352,7 @@ class GameBoy:
         this.draw_sprites()
     else:
       this.window.clear(kPalette[0])
-      
+
   def read_tile(base, tile, x, y):
     var addr = 16 * tile + 2 * y + base
     var lsbc = this.vram[addr + 0] >> (x ^ 0x7)
@@ -1387,7 +1387,7 @@ class GameBoy:
       var index = this.read_tile(tile_base, tile, pixel_x, pixel_y)
       this.window.set_pixel(x, y, color(this.bgp, index))
       this.transparent[x] = index == 0
-      
+
   def draw_window():
     var wx = this.wx - 7
     if wx >= kScreenW:
@@ -1423,12 +1423,12 @@ class GameBoy:
       var index = this.read_tile(tile_base, tile, pixel_x, pixel_y)
       this.window.set_pixel(wx + x, this.ly, color(this.bgp, index))
       this.transparent[wx + x] = index == 0
-  
+
   def draw_sprites():
     var height = 8
     if this.lcdc & 0x04:
       height = 16
-      
+
     for entry in range(0x9C, -4, -4):
       var sy   = this.oram[entry + 0] - 16
       var sx   = this.oram[entry + 1] - 8
@@ -1476,7 +1476,7 @@ class GameBoy:
     if rom.size() < 0x8000:
       print("rom too small")
       return false
-      
+
     switch this.rom[0x147]:
       case 0x00:
       case 0x08:
@@ -1554,12 +1554,12 @@ class GameBoy:
       this.eram.resize(0x2000 * this.ram_banks, 0xFF)
 
     return true
-    
+
   def frame():
     while true:
       this.cpu()
       this.irq()
-      
+
       if this.cycles >= 70224:
         this.cycles = this.cycles - 70224
         break
@@ -1567,7 +1567,7 @@ class GameBoy:
   def run(rom):
     if !this.boot(rom):
       return 1
-      
+
     while sdl_events():
       var begin = time()
       this.frame()
