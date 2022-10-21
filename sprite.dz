@@ -56,1532 +56,1527 @@ def sign_extend(value):
 def color(palette, index):
   return kPalette[(palette >> (2 * index)) & 0x3]
 
-class GameBoy:
-  def init():
-    this.transparent = []
-    this.window = sdl_window("sprite", kScreenW, kScreenH, 2)
+var transparent = []
+var window = sdl_window("sprite", kScreenW, kScreenH, 2)
 
-    this.a = 0x01
-    this.f = 0xB0
-    this.b = 0x00
-    this.c = 0x13
-    this.d = 0x00
-    this.e = 0xD8
-    this.h = 0x01
-    this.l = 0x4D
+var a = 0x01
+var f = 0xB0
+var b = 0x00
+var c = 0x13
+var d = 0x00
+var e = 0xD8
+var h = 0x01
+var l = 0x4D
 
-    this.pc     = 0x0100
-    this.sp     = 0xFFFE
-    this.halt   = 0
-    this.ie     = 0
-    this.ime    = 1
-    this.cycles = 0
+var pc     = 0x0100
+var sp     = 0xFFFE
+var halt   = 0
+var ie     = 0
+var ime    = 1
+var cycles = 0
 
-    this.mbc        = 0
-    this.mbc_mode   = 0
-    this.rom_bank   = 1
-    this.rom_banks  = 0
-    this.ram_exists = 0
-    this.ram_enable = 0
-    this.ram_bank   = 0
-    this.ram_banks  = 0
+var mbc        = 0
+var mbc_mode   = 0
+var rom_bank   = 1
+var rom_banks  = 0
+var ram_exists = 0
+var ram_enable = 0
+var ram_bank   = 0
+var ram_banks  = 0
 
-    this.rom = null
-    this.vram = bytes()
-    this.vram.resize(0x2000, 0)
-    this.wram = bytes()
-    this.wram.resize(0x2000, 0)
-    this.eram = bytes()
-    this.oram = bytes()
-    this.oram.resize(0x0100, 0)
-    this.hram = bytes()
-    this.hram.resize(0x007F, 0)
+var rom = null
+var vram = bytes()
+vram.resize(0x2000, 0)
+var wram = bytes()
+wram.resize(0x2000, 0)
+var eram = bytes()
+var oram = bytes()
+oram.resize(0x0100, 0)
+var hram = bytes()
+hram.resize(0x007F, 0)
 
-    this.joyp        = 0xCF
-    this.sb          = 0x00
-    this.sc          = 0x7E
-    this.div         = 0xAC
-    this.div_cycles  = 0x00
-    this.tima        = 0x00
-    this.tima_cycles = 0x00
-    this.tma         = 0x00
-    this.tac         = 0xF8
-    this.if_         = 0xE1
-    this.nr10        = 0x80
-    this.nr11        = 0xBF
-    this.nr12        = 0xF3
-    this.nr14        = 0xBF
-    this.nr21        = 0x3F
-    this.nr22        = 0x00
-    this.nr24        = 0xBF
-    this.nr30        = 0x7F
-    this.nr31        = 0xFF
-    this.nr32        = 0x9F
-    this.nr34        = 0xBF
-    this.nr41        = 0xFF
-    this.nr42        = 0x00
-    this.nr43        = 0x00
-    this.nr44        = 0xBF
-    this.nr50        = 0x77
-    this.nr51        = 0xF3
-    this.nr52        = 0xF1
-    this.lcdc        = 0x91
-    this.stat        = 0x80
-    this.ppu_mode    = 0x00
-    this.ppu_cycles  = 0x00
-    this.scx         = 0x00
-    this.scy         = 0x00
-    this.ly          = 0x00
-    this.lyc         = 0x00
-    this.dma         = 0x00
-    this.bgp         = 0xCF
-    this.obp0        = 0xFF
-    this.obp1        = 0xFF
-    this.wx          = 0x00
-    this.wy          = 0x00
+var joyp        = 0xCF
+var sb          = 0x00
+var sc          = 0x7E
+var div         = 0xAC
+var div_cycles  = 0x00
+var tima        = 0x00
+var tima_cycles = 0x00
+var tma         = 0x00
+var tac         = 0xF8
+var if_         = 0xE1
+var nr10        = 0x80
+var nr11        = 0xBF
+var nr12        = 0xF3
+var nr14        = 0xBF
+var nr21        = 0x3F
+var nr22        = 0x00
+var nr24        = 0xBF
+var nr30        = 0x7F
+var nr31        = 0xFF
+var nr32        = 0x9F
+var nr34        = 0xBF
+var nr41        = 0xFF
+var nr42        = 0x00
+var nr43        = 0x00
+var nr44        = 0xBF
+var nr50        = 0x77
+var nr51        = 0xF3
+var nr52        = 0xF1
+var lcdc        = 0x91
+var stat        = 0x80
+var ppu_mode    = 0x00
+var ppu_cycles  = 0x00
+var scx         = 0x00
+var scy         = 0x00
+var ly          = 0x00
+var lyc         = 0x00
+var dma         = 0x00
+var bgp         = 0xCF
+var obp0        = 0xFF
+var obp1        = 0xFF
+var wx          = 0x00
+var wy          = 0x00
 
-  def af():
-    return this.f | (this.a << 8)
+def af():
+  return f | (a << 8)
 
-  def set_af(value):
-    this.f = value & 0xF0
-    this.a = (value >> 8) & 0xFF
+def set_af(value):
+  f = value & 0xF0
+  a = (value >> 8) & 0xFF
 
-  def bc():
-    return this.c | (this.b << 8)
+def bc():
+  return c | (b << 8)
 
-  def set_bc(value):
-    this.c = value & 0xFF
-    this.b = (value >> 8) & 0xFF
+def set_bc(value):
+  c = value & 0xFF
+  b = (value >> 8) & 0xFF
 
-  def de():
-    return this.e | (this.d << 8)
+def de():
+  return e | (d << 8)
 
-  def set_de(value):
-    this.e = value & 0xFF
-    this.d = (value >> 8) & 0xFF
+def set_de(value):
+  e = value & 0xFF
+  d = (value >> 8) & 0xFF
 
-  def hl():
-    return this.l | (this.h << 8)
+def hl():
+  return l | (h << 8)
 
-  def set_hl(value):
-    this.l = value & 0xFF
-    this.h = (value >> 8) & 0xFF
+def set_hl(value):
+  l = value & 0xFF
+  h = (value >> 8) & 0xFF
 
-  def fz():
-    return (this.f >> 7) & 0x1
+def fz():
+  return (f >> 7) & 0x1
 
-  def fn():
-    return (this.f >> 6) & 0x1
+def fn():
+  return (f >> 6) & 0x1
 
-  def fh():
-    return (this.f >> 5) & 0x1
+def fh():
+  return (f >> 5) & 0x1
 
-  def fc():
-    return (this.f >> 4) & 0x1
+def fc():
+  return (f >> 4) & 0x1
 
-  def set_f(z, n, h, c):
-    var f = this.f
-    if z != null:
-      if z:
-        f = f | 0x80
+def set_f(z, n, h, c):
+  if z != null:
+    if z:
+      f = f | 0x80
+    else:
+      f = f & ~0x80
+  if n != null:
+    if n:
+      f = f | 0x40
+    else:
+      f = f & ~0x40
+  if h != null:
+    if h:
+      f = f | 0x20
+    else:
+      f = f & ~0x20
+  if c != null:
+    if c:
+      f = f | 0x10
+    else:
+      f = f & ~0x10
+
+def lcd_enabled():
+  return lcdc & 0x80
+
+def read_byte_io(addr):
+  switch addr:
+    case 0x00:
+      var value = joyp & 0b00110000
+      if (value & 0x10) == 0:
+        value = value | (sdl_keystate( 7) << 0)
+        value = value | (sdl_keystate( 4) << 1)
+        value = value | (sdl_keystate(26) << 2)
+        value = value | (sdl_keystate(22) << 3)
+      elif (value & 0x20) == 0:
+        value = value | (sdl_keystate(24) << 0)
+        value = value | (sdl_keystate(11) << 1)
+        value = value | (sdl_keystate( 9) << 2)
+        value = value | (sdl_keystate(10) << 3)
+      return (value ^ 0b00001111) | 0b11000000
+    case 0x01:
+      return sb
+    case 0x02:
+      return sc | 0b01111110
+    case 0x04:
+      return div
+    case 0x05:
+      return tima
+    case 0x06:
+      return tma
+    case 0x07:
+      return tac | 0b11111000
+    case 0x0F:
+      return if_ | 0b11100000
+    case 0x10:
+      return nr10 | 0b10000000
+    case 0x11:
+      return nr11
+    case 0x12:
+      return nr12
+    case 0x14:
+      return nr14
+    case 0x16:
+      return nr21
+    case 0x17:
+      return nr22
+    case 0x19:
+      return nr24
+    case 0x1A:
+      return nr30 | 0b01111111
+    case 0x1B:
+      return nr31
+    case 0x1C:
+      return nr32 | 0b10011111
+    case 0x1E:
+      return nr34
+    case 0x20:
+      return nr41 | 0b11000000
+    case 0x21:
+      return nr42
+    case 0x22:
+      return nr43
+    case 0x23:
+      return nr44 | 0b00111111
+    case 0x24:
+      return nr50
+    case 0x25:
+      return nr51
+    case 0x26:
+      return nr52 | 0b01110000
+    case 0x40:
+      return lcdc
+    case 0x41:
+      return stat | ((ly == lyc) << 2) | ppu_mode | 0b10000000
+    case 0x42:
+      return scy
+    case 0x43:
+      return scx
+    case 0x44:
+      return ly
+    case 0x45:
+      return lyc
+    case 0x46:
+      return dma
+    case 0x47:
+      return bgp
+    case 0x48:
+      return obp0
+    case 0x49:
+      return obp1
+    case 0x4A:
+      return wy
+    case 0x4B:
+      return wx
+  return 0xFF
+
+def read_byte(addr):
+  switch addr >> 12:
+    case 0x0:
+    case 0x1:
+    case 0x2:
+    case 0x3:
+      return rom[addr]
+    case 0x4:
+    case 0x5:
+    case 0x6:
+    case 0x7:
+      if mbc == 1 || mbc == 3:
+        addr = ((rom_bank & (rom_banks - 1)) << 14) | (addr & 0x3FFF)
+      return rom[addr]
+    case 0x8:
+    case 0x9:
+      if lcd_enabled() && ppu_mode == kModeVram:
+        return 0xFF
       else:
-        f = f & ~0x80
-    if n != null:
-      if n:
-        f = f | 0x40
-      else:
-        f = f & ~0x40
-    if h != null:
-      if h:
-        f = f | 0x20
-      else:
-        f = f & ~0x20
-    if c != null:
-      if c:
-        f = f | 0x10
-      else:
-        f = f & ~0x10
-    this.f = f
-
-  def lcd_enabled():
-    return this.lcdc & 0x80
-
-  def read_byte_io(addr):
-    switch addr:
-      case 0x00:
-        var value = this.joyp & 0b00110000
-        if (value & 0x10) == 0:
-          value = value | (sdl_keystate( 7) << 0)
-          value = value | (sdl_keystate( 4) << 1)
-          value = value | (sdl_keystate(26) << 2)
-          value = value | (sdl_keystate(22) << 3)
-        elif (value & 0x20) == 0:
-          value = value | (sdl_keystate(24) << 0)
-          value = value | (sdl_keystate(11) << 1)
-          value = value | (sdl_keystate( 9) << 2)
-          value = value | (sdl_keystate(10) << 3)
-        return (value ^ 0b00001111) | 0b11000000
-      case 0x01:
-        return this.sb
-      case 0x02:
-        return this.sc | 0b01111110
-      case 0x04:
-        return this.div
-      case 0x05:
-        return this.tima
-      case 0x06:
-        return this.tma
-      case 0x07:
-        return this.tac | 0b11111000
-      case 0x0F:
-        return this.if_ | 0b11100000
-      case 0x10:
-        return this.nr10 | 0b10000000
-      case 0x11:
-        return this.nr11
-      case 0x12:
-        return this.nr12
-      case 0x14:
-        return this.nr14
-      case 0x16:
-        return this.nr21
-      case 0x17:
-        return this.nr22
-      case 0x19:
-        return this.nr24
-      case 0x1A:
-        return this.nr30 | 0b01111111
-      case 0x1B:
-        return this.nr31
-      case 0x1C:
-        return this.nr32 | 0b10011111
-      case 0x1E:
-        return this.nr34
-      case 0x20:
-        return this.nr41 | 0b11000000
-      case 0x21:
-        return this.nr42
-      case 0x22:
-        return this.nr43
-      case 0x23:
-        return this.nr44 | 0b00111111
-      case 0x24:
-        return this.nr50
-      case 0x25:
-        return this.nr51
-      case 0x26:
-        return this.nr52 | 0b01110000
-      case 0x40:
-        return this.lcdc
-      case 0x41:
-        return this.stat | ((this.ly == this.lyc) << 2) | this.ppu_mode | 0b10000000
-      case 0x42:
-        return this.scy
-      case 0x43:
-        return this.scx
-      case 0x44:
-        return this.ly
-      case 0x45:
-        return this.lyc
-      case 0x46:
-        return this.dma
-      case 0x47:
-        return this.bgp
-      case 0x48:
-        return this.obp0
-      case 0x49:
-        return this.obp1
-      case 0x4A:
-        return this.wy
-      case 0x4B:
-        return this.wx
-    return 0xFF
-
-  def read_byte(addr):
-    switch addr >> 12:
-      case 0x0:
-      case 0x1:
-      case 0x2:
-      case 0x3:
-        return this.rom[addr]
-      case 0x4:
-      case 0x5:
-      case 0x6:
-      case 0x7:
-        if this.mbc == 1 || this.mbc == 3:
-          addr = ((this.rom_bank & (this.rom_banks - 1)) << 14) | (addr & 0x3FFF)
-        return this.rom[addr]
-      case 0x8:
-      case 0x9:
-        if this.lcd_enabled() && this.ppu_mode == kModeVram:
-          return 0xFF
+        return vram[addr - 0x8000]
+    case 0xA:
+    case 0xB:
+      if ram_enable:
+        if mbc == 3 && ram_bank > 7:
+          return 0
         else:
-          return this.vram[addr - 0x8000]
-      case 0xA:
-      case 0xB:
-        if this.ram_enable:
-          if this.mbc == 3 && this.ram_bank > 7:
-            return 0
-          else:
-            addr = addr & 0x1FFF
-            if this.mbc_mode == 1 && this.ram_bank < this.ram_banks:
-              addr = addr | (this.ram_bank << 13)
-            return this.eram[addr]
-      case 0xC:
-      case 0xD:
-        return this.wram[addr - 0xC000]
-      case 0xE:
-        return this.read_byte(addr - 0xC000)
-      case 0xF:
-        if addr < 0xFE00:
-          return this.read_byte(addr - 0x2000)
-        elif addr < 0xFEA0:
-          if this.lcd_enabled():
-            switch this.ppu_mode:
-              case kModeOam:
-              case kModeVram:
-                return 0xFF
-          return this.oram[addr - 0xFE00]
-        elif addr < 0xFF00:
-          return 0xFF
-        elif addr < 0xFF80:
-          return this.read_byte_io(addr - 0xFF00)
-        elif addr < 0xFFFF:
-          return this.hram[addr - 0xFF80]
-        else:
-          return this.ie
-    return 0xFF
+          addr = addr & 0x1FFF
+          if mbc_mode == 1 && ram_bank < ram_banks:
+            addr = addr | (ram_bank << 13)
+          return eram[addr]
+    case 0xC:
+    case 0xD:
+      return wram[addr - 0xC000]
+    case 0xE:
+      return read_byte(addr - 0xC000)
+    case 0xF:
+      if addr < 0xFE00:
+        return read_byte(addr - 0x2000)
+      elif addr < 0xFEA0:
+        if lcd_enabled():
+          switch ppu_mode:
+            case kModeOam:
+            case kModeVram:
+              return 0xFF
+        return oram[addr - 0xFE00]
+      elif addr < 0xFF00:
+        return 0xFF
+      elif addr < 0xFF80:
+        return read_byte_io(addr - 0xFF00)
+      elif addr < 0xFFFF:
+        return hram[addr - 0xFF80]
+      else:
+        return ie
+  return 0xFF
 
-  def read_byte_pc():
-    var value = this.read_byte(this.pc)
-    this.pc = (this.pc + 1) & 0xFFFF
-    return value
+def read_byte_pc():
+  var value = read_byte(pc)
+  pc = (pc + 1) & 0xFFFF
+  return value
 
-  def read_signed_byte_pc():
-    return sign_extend(this.read_byte_pc())
+def read_signed_byte_pc():
+  return sign_extend(read_byte_pc())
 
-  def read_half(addr):
-    return this.read_byte(addr) | (this.read_byte(addr + 1) << 8)
+def read_half(addr):
+  return read_byte(addr) | (read_byte(addr + 1) << 8)
 
-  def read_half_pc():
-    var value = this.read_half(this.pc)
-    this.pc = (this.pc + 2) & 0xFFFF
-    return value
+def read_half_pc():
+  var value = read_half(pc)
+  pc = (pc + 2) & 0xFFFF
+  return value
 
-  def write_byte_io(addr, byte):
-    switch addr:
-      case 0x00:
-        this.joyp = byte & 0b11110000
-      case 0x01:
-        this.sb = byte
-      case 0x02:
-        this.sc = byte
-      case 0x04:
-        this.div = 0
-        this.div_cycles = 0
-        this.tima_cycles = 0
-      case 0x05:
-        this.tima = byte
-      case 0x06:
-        this.tma = byte
-      case 0x07:
-        this.tac = byte
-      case 0x0F:
-        this.if_ = byte
-      case 0x10:
-        this.nr10 = byte
-      case 0x11:
-        this.nr11 = byte
-      case 0x12:
-        this.nr12 = byte
-      case 0x14:
-        this.nr14 = byte
-      case 0x16:
-        this.nr21 = byte
-      case 0x17:
-        this.nr22 = byte
-      case 0x19:
-        this.nr24 = byte
-      case 0x1A:
-        this.nr30 = byte
-      case 0x1B:
-        this.nr31 = byte
-      case 0x1C:
-        this.nr32 = byte
-      case 0x1E:
-        this.nr34 = byte
-      case 0x20:
-        this.nr41 = byte
-      case 0x21:
-        this.nr42 = byte
-      case 0x22:
-        this.nr43 = byte
-      case 0x23:
-        this.nr44 = byte
-      case 0x24:
-        this.nr50 = byte
-      case 0x25:
-        this.nr51 = byte
-      case 0x26:
-        this.nr52 = byte
-      case 0x40:
-        this.lcdc = byte
-      case 0x41:
-        this.stat = byte & 0b11111000
-      case 0x42:
-        this.scy = byte
-      case 0x43:
-        this.scx = byte
-      case 0x44:
-        noop
-      case 0x45:
-        this.lyc = byte
-      case 0x46:
-        this.dma = byte
-        this.oam_dma(byte)
-      case 0x47:
-        this.bgp = byte
-      case 0x48:
-        this.obp0 = byte
-      case 0x49:
-        this.obp1 = byte
-      case 0x4A:
-        this.wy = byte
-      case 0x4B:
-        this.wx = byte
+def write_byte_io(addr, byte):
+  switch addr:
+    case 0x00:
+      joyp = byte & 0b11110000
+    case 0x01:
+      sb = byte
+    case 0x02:
+      sc = byte
+    case 0x04:
+      div = 0
+      div_cycles = 0
+      tima_cycles = 0
+    case 0x05:
+      tima = byte
+    case 0x06:
+      tma = byte
+    case 0x07:
+      tac = byte
+    case 0x0F:
+      if_ = byte
+    case 0x10:
+      nr10 = byte
+    case 0x11:
+      nr11 = byte
+    case 0x12:
+      nr12 = byte
+    case 0x14:
+      nr14 = byte
+    case 0x16:
+      nr21 = byte
+    case 0x17:
+      nr22 = byte
+    case 0x19:
+      nr24 = byte
+    case 0x1A:
+      nr30 = byte
+    case 0x1B:
+      nr31 = byte
+    case 0x1C:
+      nr32 = byte
+    case 0x1E:
+      nr34 = byte
+    case 0x20:
+      nr41 = byte
+    case 0x21:
+      nr42 = byte
+    case 0x22:
+      nr43 = byte
+    case 0x23:
+      nr44 = byte
+    case 0x24:
+      nr50 = byte
+    case 0x25:
+      nr51 = byte
+    case 0x26:
+      nr52 = byte
+    case 0x40:
+      lcdc = byte
+    case 0x41:
+      stat = byte & 0b11111000
+    case 0x42:
+      scy = byte
+    case 0x43:
+      scx = byte
+    case 0x44:
+      noop
+    case 0x45:
+      lyc = byte
+    case 0x46:
+      dma = byte
+      oam_dma(byte)
+    case 0x47:
+      bgp = byte
+    case 0x48:
+      obp0 = byte
+    case 0x49:
+      obp1 = byte
+    case 0x4A:
+      wy = byte
+    case 0x4B:
+      wx = byte
 
-  def write_byte(addr, byte):
-    switch addr >> 12:
-      case 0x0:
-      case 0x1:
-        if (this.mbc == 1 || this.mbc == 3) && this.ram_exists:
-          this.ram_enable = (byte & 0xF) == 0xA
-      case 0x2:
-      case 0x3:
-        if this.mbc == 1:
-          this.rom_bank = max(1, byte & 0x1F)
-        elif this.mbc == 3:
-          this.rom_bank = max(1, byte & 0x7F)
-      case 0x4:
-      case 0x5:
-        if this.ram_exists:
-          if this.mbc == 1:
-            this.ram_bank = byte & 0x3
-          elif this.mbc == 3:
-            this.ram_bank = byte
-      case 0x6:
-      case 0x7:
-        if this.mbc == 1:
-          this.mbc_mode = byte & 0x1
-      case 0x8:
-      case 0x9:
-        if this.lcd_enabled() && this.ppu_mode == kModeVram:
+def write_byte(addr, byte):
+  switch addr >> 12:
+    case 0x0:
+    case 0x1:
+      if (mbc == 1 || mbc == 3) && ram_exists:
+        ram_enable = (byte & 0xF) == 0xA
+    case 0x2:
+    case 0x3:
+      if mbc == 1:
+        rom_bank = max(1, byte & 0x1F)
+      elif mbc == 3:
+        rom_bank = max(1, byte & 0x7F)
+    case 0x4:
+    case 0x5:
+      if ram_exists:
+        if mbc == 1:
+          ram_bank = byte & 0x3
+        elif mbc == 3:
+          ram_bank = byte
+    case 0x6:
+    case 0x7:
+      if mbc == 1:
+        mbc_mode = byte & 0x1
+    case 0x8:
+    case 0x9:
+      if lcd_enabled() && ppu_mode == kModeVram:
+        return
+      vram[addr - 0x8000] = byte
+    case 0xA:
+    case 0xB:
+      if ram_enable:
+        if mbc == 3 && ram_bank > 7:
           return
-        this.vram[addr - 0x8000] = byte
-      case 0xA:
-      case 0xB:
-        if this.ram_enable:
-          if this.mbc == 3 && this.ram_bank > 7:
-            return
-          else:
-            addr = addr & 0x1FFF
-            if this.mbc_mode == 1 && this.ram_bank < this.ram_banks:
-              addr = addr | (this.ram_bank << 13)
-            this.eram[addr] = byte
-      case 0xC:
-      case 0xD:
-        this.wram[addr - 0xC000] = byte
-      case 0xE:
-        this.write_byte(addr - 0x2000, byte)
-      case 0xF:
-        if addr < 0xFE00:
-          this.write_byte(addr - 0x2000, byte)
-        elif addr < 0xFEA0:
-          if this.lcd_enabled():
-            switch this.ppu_mode:
-              case kModeOam:
-              case kModeVram:
-                return
-          this.oram[addr - 0xFE00] = byte
-        elif addr < 0xFF00:
-          noop
-        elif addr < 0xFF80:
-          this.write_byte_io(addr - 0xFF00, byte)
-        elif addr < 0xFFFF:
-          this.hram[addr - 0xFF80] = byte
         else:
-          this.ie = byte
-
-  def write_half(addr, half):
-    this.write_byte(addr, half & 0xFF)
-    this.write_byte(addr + 1, (half >> 8) & 0xFF)
-
-  def inc(value):
-    value = (value + 1) & 0xFF
-    this.set_f(value == 0, 0, (value & 0x0F) == 0x00, null)
-    return value
-
-  def dec(value):
-    value = (value - 1) & 0xFF
-    this.set_f(value == 0, 1, (value & 0x0F) == 0x0F, null)
-    return value
-
-  def add(other):
-    var value = this.a + other
-    this.set_f((value & 0xFF) == 0, 0, (this.a ^ other ^ value) & 0x10, value & 0xFF00)
-    this.a = value & 0xFF
-
-  def add_half(other):
-    var value = this.hl() + other
-    this.set_f(null, 0, (this.hl() ^ other ^ value) & 0x1000, value & 0xFFFF0000)
-    this.set_hl(value)
-
-  def add_signed_byte(value):
-    var byte = this.read_signed_byte_pc()
-    this.set_f(0, 0, (value & 0xF) + (byte & 0xF) > 0xF, (value & 0xFF) + (byte & 0xFF) > 0xFF)
-    return value + byte
-
-  def adc(other):
-    var value = this.a + other + this.fc()
-    this.set_f((value & 0xFF) == 0, 0, (this.a ^ other ^ value) & 0x10, value & 0xFF00)
-    this.a = value & 0xFF
-
-  def sub(other):
-    var value = this.a - other
-    this.set_f((value & 0xFF) == 0, 1, (this.a ^ other ^ value) & 0x10, value & 0xFF00)
-    this.a = value & 0xFF
-
-  def sbc(other):
-    var value = this.a - other - this.fc()
-    this.set_f((value & 0xFF) == 0, 1, (this.a ^ other ^ value) & 0x10, value & 0xFF00)
-    this.a = value & 0xFF
-
-  def cp(other):
-    var value = this.a - other
-    this.set_f((value & 0xFF) == 0, 1, (this.a ^ other ^ value) & 0x10, value & 0xFF00)
-
-  def and(other):
-    this.a = this.a & other
-    this.set_f(this.a == 0, 0, 1, 0)
-
-  def xor(other):
-    this.a = this.a ^ other
-    this.set_f(this.a == 0, 0, 0, 0)
-
-  def or(other):
-    this.a = this.a | other
-    this.set_f(this.a == 0, 0, 0, 0)
-
-  def jp(condition):
-    if condition == null || condition:
-      this.pc = this.read_half_pc()
-      if condition != null:
-        this.tick(4)
-    else:
-      this.pc = (this.pc + 2) & 0xFFFF
-
-  def jr(condition):
-    var offset = 1
-    if condition == null || condition:
-      offset = this.read_signed_byte_pc()
-      if condition != null:
-        this.tick(4)
-    this.pc = (this.pc + offset) & 0xFFFF
-
-  def push(value):
-    this.sp = (this.sp - 2) & 0xFFFF
-    this.write_half(this.sp, value)
-
-  def pop():
-    var value = this.read_half(this.sp)
-    this.sp = (this.sp + 2) & 0xFFFF
-    return value
-
-  def call(condition):
-    if condition == null || condition:
-      var addr = this.read_half_pc()
-      this.push(this.pc)
-      this.pc = addr
-      if condition != null:
-        this.tick(12)
-    else:
-      this.pc = (this.pc + 2) & 0xFFFF
-
-  def ret(condition):
-    if condition == null || condition:
-      this.pc = this.pop()
-      if condition != null:
-        this.tick(12)
-
-  def rst(addr):
-    this.push(this.pc)
-    this.pc = addr
-
-  def daa():
-    if this.fn():
-      if this.fh():
-        this.a = (this.a - 0x06) & 0x00FF
-      if this.fc():
-        this.a = (this.a - 0x60) & 0xFFFF
-    else:
-      if this.fh() || (this.a & 0x000F) > 0x09:
-        this.a = (this.a + 0x06) & 0xFFFF
-      if this.fc() || (this.a & 0xFFFF) > 0x9F:
-        this.a = (this.a + 0x60) & 0xFFFF
-    if (this.a & 0x100) == 0x100:
-      this.set_f(null, null, null, 1)
-    this.a = this.a & 0xFF
-    this.set_f(this.a == 0, null, 0, null)
-
-  def cpu():
-    if this.halt:
-      this.tick(kCycles[0])
-      return
-
-    var opcode = this.read_byte_pc()
-    switch opcode:
-      case 0x00:  # NOP
+          addr = addr & 0x1FFF
+          if mbc_mode == 1 && ram_bank < ram_banks:
+            addr = addr | (ram_bank << 13)
+          eram[addr] = byte
+    case 0xC:
+    case 0xD:
+      wram[addr - 0xC000] = byte
+    case 0xE:
+      write_byte(addr - 0x2000, byte)
+    case 0xF:
+      if addr < 0xFE00:
+        write_byte(addr - 0x2000, byte)
+      elif addr < 0xFEA0:
+        if lcd_enabled():
+          switch ppu_mode:
+            case kModeOam:
+            case kModeVram:
+              return
+        oram[addr - 0xFE00] = byte
+      elif addr < 0xFF00:
         noop
-      case 0x01:  # LD BC, u16
-        this.c = this.read_byte_pc()
-        this.b = this.read_byte_pc()
-      case 0x02:  # LD (BC), A
-        this.write_byte(this.bc(), this.a)
-      case 0x03:  # INC BC
-        this.set_bc(this.bc() + 1)
-      case 0x04:  # INC B
-        this.b = this.inc(this.b)
-      case 0x05:  # DEC B
-        this.b = this.dec(this.b)
-      case 0x06:  # LD B, u8
-        this.b = this.read_byte_pc()
-      case 0x07:  # RLCA
-        this.a = ((this.a << 1) | (this.a >> 7)) & 0xFF
-        this.set_f(0, 0, 0, this.a & 0x1)
-      case 0x08:  # LD (u16), SP
-        this.write_half(this.read_half_pc(), this.sp)
-      case 0x09:  # ADD HL, BC
-        this.add_half(this.bc())
-      case 0x0A:  # LD A, (BC)
-        this.a = this.read_byte(this.bc())
-      case 0x0B:  # DEC BC
-        this.set_bc(this.bc() - 1)
-      case 0x0C:  # INC C
-        this.c = this.inc(this.c)
-      case 0x0D:  # DEC C
-        this.c = this.dec(this.c)
-      case 0x0E:  # LD C, u8
-        this.c = this.read_byte_pc()
-      case 0x0F:  # RRCA
-        this.set_f(0, 0, 0, this.a & 0x1)
-        this.a = ((this.a >> 1) | (this.a << 7)) & 0xFF
-      case 0x10:  # STOP
-        noop
-      case 0x11:  # LD DE, u16
-        this.e = this.read_byte_pc()
-        this.d = this.read_byte_pc()
-      case 0x12:  # LD (DE), A
-        this.write_byte(this.de(), this.a)
-      case 0x13:  # INC DE
-        this.set_de(this.de() + 1)
-      case 0x14:  # INC D
-        this.d = this.inc(this.d)
-      case 0x15:  # DEC D
-        this.d = this.dec(this.d)
-      case 0x16:  # LD D, u8
-        this.d = this.read_byte_pc()
-      case 0x17:  # RLA
-        this.a = (this.a << 1) | this.fc()
-        this.set_f(0, 0, 0, this.a >> 8)
-        this.a = this.a & 0xFF
-      case 0x18:  # JR s8
-        this.jr(null)
-      case 0x19:  # ADD HL, DE
-        this.add_half(this.de())
-      case 0x1A:  # LD A, (DE)
-        this.a = this.read_byte(this.de())
-      case 0x1B:  # DEC DE
-        this.set_de(this.de() - 1)
-      case 0x1C:  # INC E
-        this.e = this.inc(this.e)
-      case 0x1D:  # DEC E
-        this.e = this.dec(this.e)
-      case 0x1E:  # LD E, u8
-        this.e = this.read_byte_pc()
-      case 0x1F:  # RRA
-        this.a = this.a | (this.fc() << 8)
-        this.set_f(0, 0, 0, this.a & 0x1)
-        this.a = this.a >> 1
-      case 0x20:  # JR NZ, s8
-        this.jr(!this.fz())
-      case 0x21:  # LD HL, u16
-        this.l = this.read_byte_pc()
-        this.h = this.read_byte_pc()
-      case 0x22:  # LD (HL+), A
-        this.write_byte(this.hl(), this.a)
-        this.set_hl(this.hl() + 1)
-      case 0x23:  # INC HL
-        this.set_hl(this.hl() + 1)
-      case 0x24:  # INC H
-        this.h = this.inc(this.h)
-      case 0x25:  # DEC H
-        this.h = this.dec(this.h)
-      case 0x26:  # LD H, u8
-        this.h = this.read_byte_pc()
-      case 0x27:  # DAA
-        this.daa()
-      case 0x28:  # JR Z, s8
-        this.jr(this.fz())
-      case 0x29:  # ADD HL, HL
-        this.add_half(this.hl())
-      case 0x2A:  # LD A, (HL+)
-        this.a = this.read_byte(this.hl())
-        this.set_hl(this.hl() + 1)
-      case 0x2B:  # DEC HL
-        this.set_hl(this.hl() - 1)
-      case 0x2C:  # INC L
-        this.l = this.inc(this.l)
-      case 0x2D:  # DEC L
-        this.l = this.dec(this.l)
-      case 0x2E:  # LD L, u8
-        this.l = this.read_byte_pc()
-      case 0x2F:  # CPL
-        this.a = (~this.a & 0xFF)
-        this.set_f(null, 1, 1, null)
-      case 0x30:  # JR NC, s8
-        this.jr(!this.fc())
-      case 0x31:  # LD SP, u16
-        this.sp = this.read_half_pc()
-      case 0x32:  # LD (HL-), A
-        this.write_byte(this.hl(), this.a)
-        this.set_hl(this.hl() - 1)
-      case 0x33:  # INC SP
-        this.sp = (this.sp + 1) & 0xFFFF
-      case 0x34:  # INC (HL)
-        this.write_byte(this.hl(), this.inc(this.read_byte(this.hl())))
-      case 0x35:  # DEC (HL)
-        this.write_byte(this.hl(), this.dec(this.read_byte(this.hl())))
-      case 0x36:  # LD (HL), u8
-        this.write_byte(this.hl(), this.read_byte_pc())
-      case 0x37:  # SCF
-        this.set_f(null, 0, 0, 1)
-      case 0x38:  # JR C, s8
-        this.jr(this.fc())
-      case 0x39:  # ADD HL, SP
-        this.add_half(this.sp)
-      case 0x3A:  # LD A, (HL-)
-        this.a = this.read_byte(this.hl())
-        this.set_hl(this.hl() - 1)
-      case 0x3B:  # DEC SP
-        this.sp = (this.sp - 1) & 0xFFFF
-      case 0x3C:  # INC A
-        this.a = this.inc(this.a)
-      case 0x3D:  # DEC A
-        this.a = this.dec(this.a)
-      case 0x3E:  # LD A, u8
-        this.a = this.read_byte_pc()
-      case 0x3F:  # CCF
-        this.set_f(null, 0, 0, !this.fc())
-      case 0x40:  # LD B, B
-        noop
-      case 0x41:  # LD B, C
-        this.b = this.c
-      case 0x42:  # LD B, D
-        this.b = this.d
-      case 0x43:  # LD B, E
-        this.b = this.e
-      case 0x44:  # LD B, H
-        this.b = this.h
-      case 0x45:  # LD B, L
-        this.b = this.l
-      case 0x46:  # LD B, (HL)
-        this.b = this.read_byte(this.hl())
-      case 0x47:  # LD B, A
-        this.b = this.a
-      case 0x48:  # LD C, B
-        this.c = this.b
-      case 0x49:  # LD C, C
-        noop
-      case 0x4A:  # LD C, D
-        this.c = this.d
-      case 0x4B:  # LD C, E
-        this.c = this.e
-      case 0x4C:  # LD C, H
-        this.c = this.h
-      case 0x4D:  # LD C, L
-        this.c = this.l
-      case 0x4E:  # LD C, (HL)
-        this.c = this.read_byte(this.hl())
-      case 0x4F:  # LD C, A
-        this.c = this.a
-      case 0x50:  # LD D, B
-        this.d = this.b
-      case 0x51:  # LD D, C
-        this.d = this.c
-      case 0x52:  # LD D, D
-        noop
-      case 0x53:  # LD D, E
-        this.d = this.e
-      case 0x54:  # LD D, H
-        this.d = this.h
-      case 0x55:  # LD D, L
-        this.d = this.l
-      case 0x56:  # LD D, (HL)
-        this.d = this.read_byte(this.hl())
-      case 0x57:  # LD D, A
-        this.d = this.a
-      case 0x58:  # LD E, B
-        this.e = this.b
-      case 0x59:  # LD E, C
-        this.e = this.c
-      case 0x5A:  # LD E, D
-        this.e = this.d
-      case 0x5B:  # LD E, E
-        noop
-      case 0x5C:  # LD E, H
-        this.e = this.h
-      case 0x5D:  # LD E, L
-        this.e = this.l
-      case 0x5E:  # LD E, (HL)
-        this.e = this.read_byte(this.hl())
-      case 0x5F:  # LD E, A
-        this.e = this.a
-      case 0x60:  # LD H, B
-        this.h = this.b
-      case 0x61:  # LD H, C
-        this.h = this.c
-      case 0x62:  # LD H, D
-        this.h = this.d
-      case 0x63:  # LD H, E
-        this.h = this.e
-      case 0x64:  # LD H, H
-        noop
-      case 0x65:  # LD H, L
-        this.h = this.l
-      case 0x66:  # LD H, (HL)
-        this.h = this.read_byte(this.hl())
-      case 0x67:  # LD H, A
-        this.h = this.a
-      case 0x68:  # LD L, B
-        this.l = this.b
-      case 0x69:  # LD L, C
-        this.l = this.c
-      case 0x6A:  # LD L, D
-        this.l = this.d
-      case 0x6B:  # LD L, E
-        this.l = this.e
-      case 0x6C:  # LD L, H
-        this.l = this.h
-      case 0x6D:  # LD L, L
-        noop
-      case 0x6E:  # LD L, (HL)
-        this.l = this.read_byte(this.hl())
-      case 0x6F:  # LD L, A
-        this.l = this.a
-      case 0x70:  # LD (HL), B
-        this.write_byte(this.hl(), this.b)
-      case 0x71:  # LD (HL), C
-        this.write_byte(this.hl(), this.c)
-      case 0x72:  # LD (HL), D
-        this.write_byte(this.hl(), this.d)
-      case 0x73:  # LD (HL), E
-        this.write_byte(this.hl(), this.e)
-      case 0x74:  # LD (HL), H
-        this.write_byte(this.hl(), this.h)
-      case 0x75:  # LD (HL), L
-        this.write_byte(this.hl(), this.l)
-      case 0x76:  # HALT
-        this.halt = 1
-      case 0x77:  # LD (HL), A
-        this.write_byte(this.hl(), this.a)
-      case 0x78:  # LD A, B
-        this.a = this.b
-      case 0x79:  # LD A, C
-        this.a = this.c
-      case 0x7A:  # LD A, D
-        this.a = this.d
-      case 0x7B:  # LD A, E
-        this.a = this.e
-      case 0x7C:  # LD A, H
-        this.a = this.h
-      case 0x7D:  # LD A, L
-        this.a = this.l
-      case 0x7E:  # LD A, (HL)
-        this.a = this.read_byte(this.hl())
-      case 0x7F:  # LD A, A
-        noop
-      case 0x80:  # ADD A, B
-        this.add(this.b)
-      case 0x81:  # ADD A, C
-        this.add(this.c)
-      case 0x82:  # ADD A, D
-        this.add(this.d)
-      case 0x83:  # ADD A, E
-        this.add(this.e)
-      case 0x84:  # ADD A, H
-        this.add(this.h)
-      case 0x85:  # ADD A, L
-        this.add(this.l)
-      case 0x86:  # ADD A, (HL)
-        this.add(this.read_byte(this.hl()))
-      case 0x87:  # ADD A, A
-        this.add(this.a)
-      case 0x88:  # ADC A, B
-        this.adc(this.b)
-      case 0x89:  # ADC A, C
-        this.adc(this.c)
-      case 0x8A:  # ADC A, D
-        this.adc(this.d)
-      case 0x8B:  # ADC A, E
-        this.adc(this.e)
-      case 0x8C:  # ADC A, H
-        this.adc(this.h)
-      case 0x8D:  # ADC A, L
-        this.adc(this.l)
-      case 0x8E:  # ADC A, (HL)
-        this.adc(this.read_byte(this.hl()))
-      case 0x8F:  # ADC A, A
-        this.adc(this.a)
-      case 0x90:  # SUB A, B
-        this.sub(this.b)
-      case 0x91:  # SUB A, C
-        this.sub(this.c)
-      case 0x92:  # SUB A, D
-        this.sub(this.d)
-      case 0x93:  # SUB A, E
-        this.sub(this.e)
-      case 0x94:  # SUB A, H
-        this.sub(this.h)
-      case 0x95:  # SUB A, L
-        this.sub(this.l)
-      case 0x96:  # SUB A, (HL)
-        this.sub(this.read_byte(this.hl()))
-      case 0x97:  # SUB A, A
-        this.sub(this.a)
-      case 0x98:  # SBC A, B
-        this.sbc(this.b)
-      case 0x99:  # SBC A, C
-        this.sbc(this.c)
-      case 0x9A:  # SBC A, D
-        this.sbc(this.d)
-      case 0x9B:  # SBC A, E
-        this.sbc(this.e)
-      case 0x9C:  # SBC A, H
-        this.sbc(this.h)
-      case 0x9D:  # SBC A, L
-        this.sbc(this.l)
-      case 0x9E:  # SBC A, (HL)
-        this.sbc(this.read_byte(this.hl()))
-      case 0x9F:  # SBC A, A
-        this.sbc(this.a)
-      case 0xA0:  # AND A, B
-        this.and(this.b)
-      case 0xA1:  # AND A, C
-        this.and(this.c)
-      case 0xA2:  # AND A, D
-        this.and(this.d)
-      case 0xA3:  # AND A, E
-        this.and(this.e)
-      case 0xA4:  # AND A, H
-        this.and(this.h)
-      case 0xA5:  # AND A, L
-        this.and(this.l)
-      case 0xA6:  # AND A, (HL)
-        this.and(this.read_byte(this.hl()))
-      case 0xA7:  # AND A, A
-        this.and(this.a)
-      case 0xA8:  # XOR A, B
-        this.xor(this.b)
-      case 0xA9:  # XOR A, C
-        this.xor(this.c)
-      case 0xAA:  # XOR A, D
-        this.xor(this.d)
-      case 0xAB:  # XOR A, E
-        this.xor(this.e)
-      case 0xAC:  # XOR A, H
-        this.xor(this.h)
-      case 0xAD:  # XOR A, L
-        this.xor(this.l)
-      case 0xAE:  # XOR A, (HL)
-        this.xor(this.read_byte(this.hl()))
-      case 0xAF:  # XOR A, A
-        this.xor(this.a)
-      case 0xB0:  # OR A, B
-        this.or(this.b)
-      case 0xB1:  # OR A, C
-        this.or(this.c)
-      case 0xB2:  # OR A, D
-        this.or(this.d)
-      case 0xB3:  # OR A, E
-        this.or(this.e)
-      case 0xB4:  # OR A, H
-        this.or(this.h)
-      case 0xB5:  # OR A, L
-        this.or(this.l)
-      case 0xB6:  # OR A, (HL)
-        this.or(this.read_byte(this.hl()))
-      case 0xB7:  # OR A, A
-        this.or(this.a)
-      case 0xB8:  # CP A, B
-        this.cp(this.b)
-      case 0xB9:  # CP A, C
-        this.cp(this.c)
-      case 0xBA:  # CP A, D
-        this.cp(this.d)
-      case 0xBB:  # CP A, E
-        this.cp(this.e)
-      case 0xBC:  # CP A, H
-        this.cp(this.h)
-      case 0xBD:  # CP A, L
-        this.cp(this.l)
-      case 0xBE:  # CP A, (HL)
-        this.cp(this.read_byte(this.hl()))
-      case 0xBF:  # CP A, A
-        this.cp(this.a)
-      case 0xC0:  # RET NZ
-        this.ret(!this.fz())
-      case 0xC1:  # POP BC
-        this.set_bc(this.pop())
-      case 0xC2:  # JP NZ, u16
-        this.jp(!this.fz())
-      case 0xC3:  # JP u16
-        this.jp(null)
-      case 0xC4:  # CALL NZ, u16
-        this.call(!this.fz())
-      case 0xC5:  # PUSH BC
-        this.push(this.bc())
-      case 0xC6:  # ADD A, u8
-        this.add(this.read_byte_pc())
-      case 0xC7:  # RST 0x00
-        this.rst(0x00)
-      case 0xC8:  # RET Z
-        this.ret(this.fz())
-      case 0xC9:  # RET
-        this.ret(null)
-      case 0xCA:  # JP Z, u16
-        this.jp(this.fz())
-      case 0xCB:  # PREFIX CB
-        this.prefix()
-      case 0xCC:  # CALL Z, u16
-        this.call(this.fz())
-      case 0xCD:  # CALL u16
-        this.call(null)
-      case 0xCE:  # ADC A, u8
-        this.adc(this.read_byte_pc())
-      case 0xCF:  # RST 0x08
-        this.rst(0x08)
-      case 0xD0:  # RET NC
-        this.ret(!this.fc())
-      case 0xD1:  # POP DE
-        this.set_de(this.pop())
-      case 0xD2:  # JP NC, u16
-        this.jp(!this.fc())
-      case 0xD4:  # CALL NC, u16
-        this.call(!this.fc())
-      case 0xD5:  # PUSH DE
-        this.push(this.de())
-      case 0xD6:  # SUB A, u8
-        this.sub(this.read_byte_pc())
-      case 0xD7:  # RST 0x10
-        this.rst(0x10)
-      case 0xD8:  # RET C
-        this.ret(this.fc())
-      case 0xD9:  # RETI
-        this.pc = this.pop()
-        this.ime = true
-      case 0xDA:  # JP C, u16
-        this.jp(this.fc())
-      case 0xDC:  # CALL C, u16
-        this.call(this.fc())
-      case 0xDE:  # SBC A, u8
-        this.sbc(this.read_byte_pc())
-      case 0xDF:  # RST 0x18
-        this.rst(0x18)
-      case 0xE0:  # LDH (u8), A
-        this.write_byte(0xFF00 | this.read_byte_pc(), this.a)
-      case 0xE1:  # POP HL
-        this.set_hl(this.pop())
-      case 0xE2:  # LDH (C), A
-        this.write_byte(0xFF00 | this.c, this.a)
-      case 0xE5:  # PUSH HL
-        this.push(this.hl())
-      case 0xE6:  # AND A, u8
-        this.and(this.read_byte_pc())
-      case 0xE7:  # RST 0x20
-        this.rst(0x20)
-      case 0xE8:  # ADD SP, s8
-        this.sp = this.add_signed_byte(this.sp) & 0xFFFF
-      case 0xE9:  # JP (HL)
-        this.pc = this.hl()
-      case 0xEA:  # LD (u16), A
-        this.write_byte(this.read_half_pc(), this.a)
-      case 0xEE:  # XOR A, u8
-        this.xor(this.read_byte_pc())
-      case 0xEF:  # RST 0x28
-        this.rst(0x28)
-      case 0xF0:  # LDH A, u8
-        this.a = this.read_byte(0xFF00 | this.read_byte_pc())
-      case 0xF1:  # POP AF
-        this.set_af(this.pop())
-      case 0xF2:  # LDH A, (C)
-        this.a = this.read_byte(0xFF00 | this.c)
-      case 0xF3:  # DI
-        this.ime = 0
-      case 0xF5:  # PUSH AF
-        this.push(this.af())
-      case 0xF6:  # OR A, u8
-        this.or(this.read_byte_pc())
-      case 0xF7:  # RST 0x30
-        this.rst(0x30)
-      case 0xF8:  # LD HL, SP + s8
-        this.set_hl(this.add_signed_byte(this.sp))
-      case 0xF9:  # LD SP, HL
-        this.sp = this.hl()
-      case 0xFA:  # LD A, (u16)
-        this.a = this.read_byte(this.read_half_pc())
-      case 0xFB:  # EI
-        this.ime = 1
-      case 0xFE:  # CP A, u8
-        this.cp(this.read_byte_pc())
-      case 0xFF:  # RST 0x38
-        this.rst(0x38)
-    this.tick(kCycles[opcode])
+      elif addr < 0xFF80:
+        write_byte_io(addr - 0xFF00, byte)
+      elif addr < 0xFFFF:
+        hram[addr - 0xFF80] = byte
+      else:
+        ie = byte
 
-  def prefix():
-    var opcode = this.read_byte_pc()
+def write_half(addr, half):
+  write_byte(addr, half & 0xFF)
+  write_byte(addr + 1, (half >> 8) & 0xFF)
 
-    var operand
+def inc(value):
+  value = (value + 1) & 0xFF
+  set_f(value == 0, 0, (value & 0x0F) == 0x00, null)
+  return value
+
+def dec(value):
+  value = (value - 1) & 0xFF
+  set_f(value == 0, 1, (value & 0x0F) == 0x0F, null)
+  return value
+
+def add(other):
+  var value = a + other
+  set_f((value & 0xFF) == 0, 0, (a ^ other ^ value) & 0x10, value & 0xFF00)
+  a = value & 0xFF
+
+def add_half(other):
+  var value = hl() + other
+  set_f(null, 0, (hl() ^ other ^ value) & 0x1000, value & 0xFFFF0000)
+  set_hl(value)
+
+def add_signed_byte(value):
+  var byte = read_signed_byte_pc()
+  set_f(0, 0, (value & 0xF) + (byte & 0xF) > 0xF, (value & 0xFF) + (byte & 0xFF) > 0xFF)
+  return value + byte
+
+def adc(other):
+  var value = a + other + fc()
+  set_f((value & 0xFF) == 0, 0, (a ^ other ^ value) & 0x10, value & 0xFF00)
+  a = value & 0xFF
+
+def sub(other):
+  var value = a - other
+  set_f((value & 0xFF) == 0, 1, (a ^ other ^ value) & 0x10, value & 0xFF00)
+  a = value & 0xFF
+
+def sbc(other):
+  var value = a - other - fc()
+  set_f((value & 0xFF) == 0, 1, (a ^ other ^ value) & 0x10, value & 0xFF00)
+  a = value & 0xFF
+
+def cp(other):
+  var value = a - other
+  set_f((value & 0xFF) == 0, 1, (a ^ other ^ value) & 0x10, value & 0xFF00)
+
+def and(other):
+  a = a & other
+  set_f(a == 0, 0, 1, 0)
+
+def xor(other):
+  a = a ^ other
+  set_f(a == 0, 0, 0, 0)
+
+def or(other):
+  a = a | other
+  set_f(a == 0, 0, 0, 0)
+
+def jp(condition):
+  if condition == null || condition:
+    pc = read_half_pc()
+    if condition != null:
+      tick(4)
+  else:
+    pc = (pc + 2) & 0xFFFF
+
+def jr(condition):
+  var offset = 1
+  if condition == null || condition:
+    offset = read_signed_byte_pc()
+    if condition != null:
+      tick(4)
+  pc = (pc + offset) & 0xFFFF
+
+def push(value):
+  sp = (sp - 2) & 0xFFFF
+  write_half(sp, value)
+
+def pop():
+  var value = read_half(sp)
+  sp = (sp + 2) & 0xFFFF
+  return value
+
+def call(condition):
+  if condition == null || condition:
+    var addr = read_half_pc()
+    push(pc)
+    pc = addr
+    if condition != null:
+      tick(12)
+  else:
+    pc = (pc + 2) & 0xFFFF
+
+def ret(condition):
+  if condition == null || condition:
+    pc = pop()
+    if condition != null:
+      tick(12)
+
+def rst(addr):
+  push(pc)
+  pc = addr
+
+def daa():
+  if fn():
+    if fh():
+      a = (a - 0x06) & 0x00FF
+    if fc():
+      a = (a - 0x60) & 0xFFFF
+  else:
+    if fh() || (a & 0x000F) > 0x09:
+      a = (a + 0x06) & 0xFFFF
+    if fc() || (a & 0xFFFF) > 0x9F:
+      a = (a + 0x60) & 0xFFFF
+  if (a & 0x100) == 0x100:
+    set_f(null, null, null, 1)
+  a = a & 0xFF
+  set_f(a == 0, null, 0, null)
+
+def cpu():
+  if halt:
+    tick(kCycles[0])
+    return
+
+  var opcode = read_byte_pc()
+  switch opcode:
+    case 0x00:  # NOP
+      noop
+    case 0x01:  # LD BC, u16
+      c = read_byte_pc()
+      b = read_byte_pc()
+    case 0x02:  # LD (BC), A
+      write_byte(bc(), a)
+    case 0x03:  # INC BC
+      set_bc(bc() + 1)
+    case 0x04:  # INC B
+      b = inc(b)
+    case 0x05:  # DEC B
+      b = dec(b)
+    case 0x06:  # LD B, u8
+      b = read_byte_pc()
+    case 0x07:  # RLCA
+      a = ((a << 1) | (a >> 7)) & 0xFF
+      set_f(0, 0, 0, a & 0x1)
+    case 0x08:  # LD (u16), SP
+      write_half(read_half_pc(), sp)
+    case 0x09:  # ADD HL, BC
+      add_half(bc())
+    case 0x0A:  # LD A, (BC)
+      a = read_byte(bc())
+    case 0x0B:  # DEC BC
+      set_bc(bc() - 1)
+    case 0x0C:  # INC C
+      c = inc(c)
+    case 0x0D:  # DEC C
+      c = dec(c)
+    case 0x0E:  # LD C, u8
+      c = read_byte_pc()
+    case 0x0F:  # RRCA
+      set_f(0, 0, 0, a & 0x1)
+      a = ((a >> 1) | (a << 7)) & 0xFF
+    case 0x10:  # STOP
+      noop
+    case 0x11:  # LD DE, u16
+      e = read_byte_pc()
+      d = read_byte_pc()
+    case 0x12:  # LD (DE), A
+      write_byte(de(), a)
+    case 0x13:  # INC DE
+      set_de(de() + 1)
+    case 0x14:  # INC D
+      d = inc(d)
+    case 0x15:  # DEC D
+      d = dec(d)
+    case 0x16:  # LD D, u8
+      d = read_byte_pc()
+    case 0x17:  # RLA
+      a = (a << 1) | fc()
+      set_f(0, 0, 0, a >> 8)
+      a = a & 0xFF
+    case 0x18:  # JR s8
+      jr(null)
+    case 0x19:  # ADD HL, DE
+      add_half(de())
+    case 0x1A:  # LD A, (DE)
+      a = read_byte(de())
+    case 0x1B:  # DEC DE
+      set_de(de() - 1)
+    case 0x1C:  # INC E
+      e = inc(e)
+    case 0x1D:  # DEC E
+      e = dec(e)
+    case 0x1E:  # LD E, u8
+      e = read_byte_pc()
+    case 0x1F:  # RRA
+      a = a | (fc() << 8)
+      set_f(0, 0, 0, a & 0x1)
+      a = a >> 1
+    case 0x20:  # JR NZ, s8
+      jr(!fz())
+    case 0x21:  # LD HL, u16
+      l = read_byte_pc()
+      h = read_byte_pc()
+    case 0x22:  # LD (HL+), A
+      write_byte(hl(), a)
+      set_hl(hl() + 1)
+    case 0x23:  # INC HL
+      set_hl(hl() + 1)
+    case 0x24:  # INC H
+      h = inc(h)
+    case 0x25:  # DEC H
+      h = dec(h)
+    case 0x26:  # LD H, u8
+      h = read_byte_pc()
+    case 0x27:  # DAA
+      daa()
+    case 0x28:  # JR Z, s8
+      jr(fz())
+    case 0x29:  # ADD HL, HL
+      add_half(hl())
+    case 0x2A:  # LD A, (HL+)
+      a = read_byte(hl())
+      set_hl(hl() + 1)
+    case 0x2B:  # DEC HL
+      set_hl(hl() - 1)
+    case 0x2C:  # INC L
+      l = inc(l)
+    case 0x2D:  # DEC L
+      l = dec(l)
+    case 0x2E:  # LD L, u8
+      l = read_byte_pc()
+    case 0x2F:  # CPL
+      a = (~a & 0xFF)
+      set_f(null, 1, 1, null)
+    case 0x30:  # JR NC, s8
+      jr(!fc())
+    case 0x31:  # LD SP, u16
+      sp = read_half_pc()
+    case 0x32:  # LD (HL-), A
+      write_byte(hl(), a)
+      set_hl(hl() - 1)
+    case 0x33:  # INC SP
+      sp = (sp + 1) & 0xFFFF
+    case 0x34:  # INC (HL)
+      write_byte(hl(), inc(read_byte(hl())))
+    case 0x35:  # DEC (HL)
+      write_byte(hl(), dec(read_byte(hl())))
+    case 0x36:  # LD (HL), u8
+      write_byte(hl(), read_byte_pc())
+    case 0x37:  # SCF
+      set_f(null, 0, 0, 1)
+    case 0x38:  # JR C, s8
+      jr(fc())
+    case 0x39:  # ADD HL, SP
+      add_half(sp)
+    case 0x3A:  # LD A, (HL-)
+      a = read_byte(hl())
+      set_hl(hl() - 1)
+    case 0x3B:  # DEC SP
+      sp = (sp - 1) & 0xFFFF
+    case 0x3C:  # INC A
+      a = inc(a)
+    case 0x3D:  # DEC A
+      a = dec(a)
+    case 0x3E:  # LD A, u8
+      a = read_byte_pc()
+    case 0x3F:  # CCF
+      set_f(null, 0, 0, !fc())
+    case 0x40:  # LD B, B
+      noop
+    case 0x41:  # LD B, C
+      b = c
+    case 0x42:  # LD B, D
+      b = d
+    case 0x43:  # LD B, E
+      b = e
+    case 0x44:  # LD B, H
+      b = h
+    case 0x45:  # LD B, L
+      b = l
+    case 0x46:  # LD B, (HL)
+      b = read_byte(hl())
+    case 0x47:  # LD B, A
+      b = a
+    case 0x48:  # LD C, B
+      c = b
+    case 0x49:  # LD C, C
+      noop
+    case 0x4A:  # LD C, D
+      c = d
+    case 0x4B:  # LD C, E
+      c = e
+    case 0x4C:  # LD C, H
+      c = h
+    case 0x4D:  # LD C, L
+      c = l
+    case 0x4E:  # LD C, (HL)
+      c = read_byte(hl())
+    case 0x4F:  # LD C, A
+      c = a
+    case 0x50:  # LD D, B
+      d = b
+    case 0x51:  # LD D, C
+      d = c
+    case 0x52:  # LD D, D
+      noop
+    case 0x53:  # LD D, E
+      d = e
+    case 0x54:  # LD D, H
+      d = h
+    case 0x55:  # LD D, L
+      d = l
+    case 0x56:  # LD D, (HL)
+      d = read_byte(hl())
+    case 0x57:  # LD D, A
+      d = a
+    case 0x58:  # LD E, B
+      e = b
+    case 0x59:  # LD E, C
+      e = c
+    case 0x5A:  # LD E, D
+      e = d
+    case 0x5B:  # LD E, E
+      noop
+    case 0x5C:  # LD E, H
+      e = h
+    case 0x5D:  # LD E, L
+      e = l
+    case 0x5E:  # LD E, (HL)
+      e = read_byte(hl())
+    case 0x5F:  # LD E, A
+      e = a
+    case 0x60:  # LD H, B
+      h = b
+    case 0x61:  # LD H, C
+      h = c
+    case 0x62:  # LD H, D
+      h = d
+    case 0x63:  # LD H, E
+      h = e
+    case 0x64:  # LD H, H
+      noop
+    case 0x65:  # LD H, L
+      h = l
+    case 0x66:  # LD H, (HL)
+      h = read_byte(hl())
+    case 0x67:  # LD H, A
+      h = a
+    case 0x68:  # LD L, B
+      l = b
+    case 0x69:  # LD L, C
+      l = c
+    case 0x6A:  # LD L, D
+      l = d
+    case 0x6B:  # LD L, E
+      l = e
+    case 0x6C:  # LD L, H
+      l = h
+    case 0x6D:  # LD L, L
+      noop
+    case 0x6E:  # LD L, (HL)
+      l = read_byte(hl())
+    case 0x6F:  # LD L, A
+      l = a
+    case 0x70:  # LD (HL), B
+      write_byte(hl(), b)
+    case 0x71:  # LD (HL), C
+      write_byte(hl(), c)
+    case 0x72:  # LD (HL), D
+      write_byte(hl(), d)
+    case 0x73:  # LD (HL), E
+      write_byte(hl(), e)
+    case 0x74:  # LD (HL), H
+      write_byte(hl(), h)
+    case 0x75:  # LD (HL), L
+      write_byte(hl(), l)
+    case 0x76:  # HALT
+      halt = 1
+    case 0x77:  # LD (HL), A
+      write_byte(hl(), a)
+    case 0x78:  # LD A, B
+      a = b
+    case 0x79:  # LD A, C
+      a = c
+    case 0x7A:  # LD A, D
+      a = d
+    case 0x7B:  # LD A, E
+      a = e
+    case 0x7C:  # LD A, H
+      a = h
+    case 0x7D:  # LD A, L
+      a = l
+    case 0x7E:  # LD A, (HL)
+      a = read_byte(hl())
+    case 0x7F:  # LD A, A
+      noop
+    case 0x80:  # ADD A, B
+      add(b)
+    case 0x81:  # ADD A, C
+      add(c)
+    case 0x82:  # ADD A, D
+      add(d)
+    case 0x83:  # ADD A, E
+      add(e)
+    case 0x84:  # ADD A, H
+      add(h)
+    case 0x85:  # ADD A, L
+      add(l)
+    case 0x86:  # ADD A, (HL)
+      add(read_byte(hl()))
+    case 0x87:  # ADD A, A
+      add(a)
+    case 0x88:  # ADC A, B
+      adc(b)
+    case 0x89:  # ADC A, C
+      adc(c)
+    case 0x8A:  # ADC A, D
+      adc(d)
+    case 0x8B:  # ADC A, E
+      adc(e)
+    case 0x8C:  # ADC A, H
+      adc(h)
+    case 0x8D:  # ADC A, L
+      adc(l)
+    case 0x8E:  # ADC A, (HL)
+      adc(read_byte(hl()))
+    case 0x8F:  # ADC A, A
+      adc(a)
+    case 0x90:  # SUB A, B
+      sub(b)
+    case 0x91:  # SUB A, C
+      sub(c)
+    case 0x92:  # SUB A, D
+      sub(d)
+    case 0x93:  # SUB A, E
+      sub(e)
+    case 0x94:  # SUB A, H
+      sub(h)
+    case 0x95:  # SUB A, L
+      sub(l)
+    case 0x96:  # SUB A, (HL)
+      sub(read_byte(hl()))
+    case 0x97:  # SUB A, A
+      sub(a)
+    case 0x98:  # SBC A, B
+      sbc(b)
+    case 0x99:  # SBC A, C
+      sbc(c)
+    case 0x9A:  # SBC A, D
+      sbc(d)
+    case 0x9B:  # SBC A, E
+      sbc(e)
+    case 0x9C:  # SBC A, H
+      sbc(h)
+    case 0x9D:  # SBC A, L
+      sbc(l)
+    case 0x9E:  # SBC A, (HL)
+      sbc(read_byte(hl()))
+    case 0x9F:  # SBC A, A
+      sbc(a)
+    case 0xA0:  # AND A, B
+      and(b)
+    case 0xA1:  # AND A, C
+      and(c)
+    case 0xA2:  # AND A, D
+      and(d)
+    case 0xA3:  # AND A, E
+      and(e)
+    case 0xA4:  # AND A, H
+      and(h)
+    case 0xA5:  # AND A, L
+      and(l)
+    case 0xA6:  # AND A, (HL)
+      and(read_byte(hl()))
+    case 0xA7:  # AND A, A
+      and(a)
+    case 0xA8:  # XOR A, B
+      xor(b)
+    case 0xA9:  # XOR A, C
+      xor(c)
+    case 0xAA:  # XOR A, D
+      xor(d)
+    case 0xAB:  # XOR A, E
+      xor(e)
+    case 0xAC:  # XOR A, H
+      xor(h)
+    case 0xAD:  # XOR A, L
+      xor(l)
+    case 0xAE:  # XOR A, (HL)
+      xor(read_byte(hl()))
+    case 0xAF:  # XOR A, A
+      xor(a)
+    case 0xB0:  # OR A, B
+      or(b)
+    case 0xB1:  # OR A, C
+      or(c)
+    case 0xB2:  # OR A, D
+      or(d)
+    case 0xB3:  # OR A, E
+      or(e)
+    case 0xB4:  # OR A, H
+      or(h)
+    case 0xB5:  # OR A, L
+      or(l)
+    case 0xB6:  # OR A, (HL)
+      or(read_byte(hl()))
+    case 0xB7:  # OR A, A
+      or(a)
+    case 0xB8:  # CP A, B
+      cp(b)
+    case 0xB9:  # CP A, C
+      cp(c)
+    case 0xBA:  # CP A, D
+      cp(d)
+    case 0xBB:  # CP A, E
+      cp(e)
+    case 0xBC:  # CP A, H
+      cp(h)
+    case 0xBD:  # CP A, L
+      cp(l)
+    case 0xBE:  # CP A, (HL)
+      cp(read_byte(hl()))
+    case 0xBF:  # CP A, A
+      cp(a)
+    case 0xC0:  # RET NZ
+      ret(!fz())
+    case 0xC1:  # POP BC
+      set_bc(pop())
+    case 0xC2:  # JP NZ, u16
+      jp(!fz())
+    case 0xC3:  # JP u16
+      jp(null)
+    case 0xC4:  # CALL NZ, u16
+      call(!fz())
+    case 0xC5:  # PUSH BC
+      push(bc())
+    case 0xC6:  # ADD A, u8
+      add(read_byte_pc())
+    case 0xC7:  # RST 0x00
+      rst(0x00)
+    case 0xC8:  # RET Z
+      ret(fz())
+    case 0xC9:  # RET
+      ret(null)
+    case 0xCA:  # JP Z, u16
+      jp(fz())
+    case 0xCB:  # PREFIX CB
+      prefix()
+    case 0xCC:  # CALL Z, u16
+      call(fz())
+    case 0xCD:  # CALL u16
+      call(null)
+    case 0xCE:  # ADC A, u8
+      adc(read_byte_pc())
+    case 0xCF:  # RST 0x08
+      rst(0x08)
+    case 0xD0:  # RET NC
+      ret(!fc())
+    case 0xD1:  # POP DE
+      set_de(pop())
+    case 0xD2:  # JP NC, u16
+      jp(!fc())
+    case 0xD4:  # CALL NC, u16
+      call(!fc())
+    case 0xD5:  # PUSH DE
+      push(de())
+    case 0xD6:  # SUB A, u8
+      sub(read_byte_pc())
+    case 0xD7:  # RST 0x10
+      rst(0x10)
+    case 0xD8:  # RET C
+      ret(fc())
+    case 0xD9:  # RETI
+      pc = pop()
+      ime = true
+    case 0xDA:  # JP C, u16
+      jp(fc())
+    case 0xDC:  # CALL C, u16
+      call(fc())
+    case 0xDE:  # SBC A, u8
+      sbc(read_byte_pc())
+    case 0xDF:  # RST 0x18
+      rst(0x18)
+    case 0xE0:  # LDH (u8), A
+      write_byte(0xFF00 | read_byte_pc(), a)
+    case 0xE1:  # POP HL
+      set_hl(pop())
+    case 0xE2:  # LDH (C), A
+      write_byte(0xFF00 | c, a)
+    case 0xE5:  # PUSH HL
+      push(hl())
+    case 0xE6:  # AND A, u8
+      and(read_byte_pc())
+    case 0xE7:  # RST 0x20
+      rst(0x20)
+    case 0xE8:  # ADD SP, s8
+      sp = add_signed_byte(sp) & 0xFFFF
+    case 0xE9:  # JP (HL)
+      pc = hl()
+    case 0xEA:  # LD (u16), A
+      write_byte(read_half_pc(), a)
+    case 0xEE:  # XOR A, u8
+      xor(read_byte_pc())
+    case 0xEF:  # RST 0x28
+      rst(0x28)
+    case 0xF0:  # LDH A, u8
+      a = read_byte(0xFF00 | read_byte_pc())
+    case 0xF1:  # POP AF
+      set_af(pop())
+    case 0xF2:  # LDH A, (C)
+      a = read_byte(0xFF00 | c)
+    case 0xF3:  # DI
+      ime = 0
+    case 0xF5:  # PUSH AF
+      push(af())
+    case 0xF6:  # OR A, u8
+      or(read_byte_pc())
+    case 0xF7:  # RST 0x30
+      rst(0x30)
+    case 0xF8:  # LD HL, SP + s8
+      set_hl(add_signed_byte(sp))
+    case 0xF9:  # LD SP, HL
+      sp = hl()
+    case 0xFA:  # LD A, (u16)
+      a = read_byte(read_half_pc())
+    case 0xFB:  # EI
+      ime = 1
+    case 0xFE:  # CP A, u8
+      cp(read_byte_pc())
+    case 0xFF:  # RST 0x38
+      rst(0x38)
+  tick(kCycles[opcode])
+
+def prefix():
+  var opcode = read_byte_pc()
+
+  var operand
+  switch opcode & 0x7:
+    case 0x0:
+      operand = b
+    case 0x1:
+      operand = c
+    case 0x2:
+      operand = d
+    case 0x3:
+      operand = e
+    case 0x4:
+      operand = h
+    case 0x5:
+      operand = l
+    case 0x6:
+      operand = read_byte(hl())
+    case 0x7:
+      operand = a
+
+  switch opcode & 0xC7:
+    case 0x06:
+    case 0x86:
+    case 0xC6:
+      tick(8)
+    case 0x46:
+      tick(4)
+
+  var writeback = true
+  if opcode <= 0x07:  # RLC
+    operand = ((operand << 1) | (operand >> 7)) & 0xFF
+    set_f(operand == 0, 0, 0, operand & 0x1)
+  elif opcode <= 0x0F:  # RRC
+    set_f(operand == 0, 0, 0, operand & 0x1)
+    operand = ((operand >> 1) | (operand << 7)) & 0xFF
+  elif opcode <= 0x17:  # RL
+    var carry = operand >> 7
+    operand = ((operand << 1) | fc()) & 0xFF
+    set_f(operand == 0, 0, 0, carry)
+  elif opcode <= 0x1F:  # RR
+    var carry = operand & 0x1
+    operand = (operand | (fc() << 8)) >> 1
+    set_f(operand == 0, 0, 0, carry)
+  elif opcode <= 0x27:  # SLA
+    var carry = operand >> 7
+    operand = (operand << 1) & 0xFF
+    set_f(operand == 0, 0, 0, carry)
+  elif opcode <= 0x2F:  # SRA
+    var carry = operand & 0x1
+    operand = (operand & 0x80) | (operand >> 1)
+    set_f(operand == 0, 0, 0, carry)
+  elif opcode <= 0x37:  # SWAP
+    operand = ((operand & 0x0F) << 4) | ((operand & 0xF0) >> 4)
+    set_f(operand == 0, 0, 0, 0)
+  elif opcode <= 0x3F:  # SRL
+    var carry = operand & 0x1
+    operand = operand >> 1
+    set_f(operand == 0, 0, 0, carry)
+  elif opcode <= 0x7F:  # BIT n
+    var bit = (opcode - 0x40) >> 3
+    set_f(!(operand & (1 << bit)), 0, 1, null)
+    writeback = false
+  elif opcode <= 0xBF:  # RES n
+    var bit = (opcode - 0x80) >> 3
+    operand = operand & ~(1 << bit)
+  elif opcode <= 0xFF:  # SET n
+    var bit = (opcode - 0xC0) >> 3
+    operand = operand | (1 << bit)
+
+  if writeback:
     switch opcode & 0x7:
       case 0x0:
-        operand = this.b
+        b = operand
       case 0x1:
-        operand = this.c
+        c = operand
       case 0x2:
-        operand = this.d
+        d = operand
       case 0x3:
-        operand = this.e
+        e = operand
       case 0x4:
-        operand = this.h
+        h = operand
       case 0x5:
-        operand = this.l
+        l = operand
       case 0x6:
-        operand = this.read_byte(this.hl())
+        write_byte(hl(), operand)
       case 0x7:
-        operand = this.a
+        a = operand
 
-    switch opcode & 0xC7:
-      case 0x06:
-      case 0x86:
-      case 0xC6:
-        this.tick(8)
-      case 0x46:
-        this.tick(4)
+def oam_dma(src):
+  src = 0x100 * min(src, 0xF1)
+  for dst in 0xFE00 .. 0xFEA0:
+    write_byte(dst, read_byte(src))
+    src = src + 1
 
-    var writeback = true
-    if opcode <= 0x07:  # RLC
-      operand = ((operand << 1) | (operand >> 7)) & 0xFF
-      this.set_f(operand == 0, 0, 0, operand & 0x1)
-    elif opcode <= 0x0F:  # RRC
-      this.set_f(operand == 0, 0, 0, operand & 0x1)
-      operand = ((operand >> 1) | (operand << 7)) & 0xFF
-    elif opcode <= 0x17:  # RL
-      var carry = operand >> 7
-      operand = ((operand << 1) | this.fc()) & 0xFF
-      this.set_f(operand == 0, 0, 0, carry)
-    elif opcode <= 0x1F:  # RR
-      var carry = operand & 0x1
-      operand = (operand | (this.fc() << 8)) >> 1
-      this.set_f(operand == 0, 0, 0, carry)
-    elif opcode <= 0x27:  # SLA
-      var carry = operand >> 7
-      operand = (operand << 1) & 0xFF
-      this.set_f(operand == 0, 0, 0, carry)
-    elif opcode <= 0x2F:  # SRA
-      var carry = operand & 0x1
-      operand = (operand & 0x80) | (operand >> 1)
-      this.set_f(operand == 0, 0, 0, carry)
-    elif opcode <= 0x37:  # SWAP
-      operand = ((operand & 0x0F) << 4) | ((operand & 0xF0) >> 4)
-      this.set_f(operand == 0, 0, 0, 0)
-    elif opcode <= 0x3F:  # SRL
-      var carry = operand & 0x1
-      operand = operand >> 1
-      this.set_f(operand == 0, 0, 0, carry)
-    elif opcode <= 0x7F:  # BIT n
-      var bit = (opcode - 0x40) >> 3
-      this.set_f(!(operand & (1 << bit)), 0, 1, null)
-      writeback = false
-    elif opcode <= 0xBF:  # RES n
-      var bit = (opcode - 0x80) >> 3
-      operand = operand & ~(1 << bit)
-    elif opcode <= 0xFF:  # SET n
-      var bit = (opcode - 0xC0) >> 3
-      operand = operand | (1 << bit)
+def irq():
+  var servable = ie & if_
+  if servable:
+    halt = 0
+    if ime:
+      for bit in 0 .. 5:
+        var mask = 1 << bit
+        if servable & mask:
+          ime = 0
+          if_ = if_ & ~mask
+          rst(0x40 + 8 * bit)
+          break
 
-    if writeback:
-      switch opcode & 0x7:
-        case 0x0:
-          this.b = operand
-        case 0x1:
-          this.c = operand
-        case 0x2:
-          this.d = operand
-        case 0x3:
-          this.e = operand
-        case 0x4:
-          this.h = operand
-        case 0x5:
-          this.l = operand
-        case 0x6:
-          this.write_byte(this.hl(), operand)
-        case 0x7:
-          this.a = operand
+def interrupt(mask):
+  if_ = if_ | mask
 
-  def oam_dma(src):
-    src = 0x100 * min(src, 0xF1)
-    for dst in 0xFE00 .. 0xFEA0:
-      this.write_byte(dst, this.read_byte(src))
-      src = src + 1
+def interrupt_stat(mask):
+  if stat & mask:
+    interrupt(kInterruptStat)
 
-  def irq():
-    var servable = this.ie & this.if_
-    if servable:
-      this.halt = 0
-      if this.ime:
-        for bit in 0 .. 5:
-          var mask = 1 << bit
-          if servable & mask:
-            this.ime = 0
-            this.if_ = this.if_ & ~mask
-            this.rst(0x40 + 8 * bit)
-            break
+def set_mode(mode):
+  switch mode:
+    case kModeOam:
+      interrupt_stat(kStatOam)
+    case kModeHBlank:
+      interrupt_stat(kStatHBlank)
+    case kModeVBlank:
+      interrupt(kInterruptVBlank)
+      interrupt_stat(kStatVBlank)
+  ppu_mode = mode
 
-  def interrupt(mask):
-    this.if_ = this.if_ | mask
+def increment_line():
+  ly = ly + 1
+  if ly == lyc:
+    interrupt_stat(kStatLine)
 
-  def interrupt_stat(mask):
-    if this.stat & mask:
-      this.interrupt(kInterruptStat)
+def tick(c):
+  cycles = cycles + c
 
-  def set_mode(mode):
-    switch mode:
-      case kModeOam:
-        this.interrupt_stat(kStatOam)
-      case kModeHBlank:
-        this.interrupt_stat(kStatHBlank)
-      case kModeVBlank:
-        this.interrupt(kInterruptVBlank)
-        this.interrupt_stat(kStatVBlank)
-    this.ppu_mode = mode
+  if tac & 0b100:
+    var freq
+    switch tac & 0b11:
+      case 0b00:
+        freq = 1024
+      case 0b01:
+        freq = 16
+      case 0b10:
+        freq = 64
+      case 0b11:
+        freq = 256
 
-  def increment_line():
-    this.ly = this.ly + 1
-    if this.ly == this.lyc:
-      this.interrupt_stat(kStatLine)
+    tima_cycles = tima_cycles + c
+    while tima_cycles >= freq:
+      tima = tima + 1
+      tima_cycles = tima_cycles - freq
 
-  def tick(cycles):
-    this.cycles = this.cycles + cycles
+      if tima == 0x100:
+        tima = tma
+        interrupt(kInterruptTimer)
 
-    if this.tac & 0b100:
-      var freq
-      switch this.tac & 0b11:
-        case 0b00:
-          freq = 1024
-        case 0b01:
-          freq = 16
-        case 0b10:
-          freq = 64
-        case 0b11:
-          freq = 256
+  div_cycles = div_cycles + c
+  while div_cycles >= 256:
+    div = (div + 1) & 0xFF
+    div_cycles = div_cycles - 256
 
-      this.tima_cycles = this.tima_cycles + cycles
-      while this.tima_cycles >= freq:
-        this.tima = this.tima + 1
-        this.tima_cycles = this.tima_cycles - freq
+  ppu_cycles = ppu_cycles + c
+  switch ppu_mode:
+    case kModeOam:
+      if ppu_cycles >= 80:
+        ppu_cycles = ppu_cycles - 80
+        set_mode(kModeVram)
+    case kModeVram:
+      if ppu_cycles >= 172:
+        ppu_cycles = ppu_cycles - 172
+        set_mode(kModeHBlank)
+        scanline()
+    case kModeHBlank:
+      if ppu_cycles >= 204:
+        ppu_cycles = ppu_cycles - 204
 
-        if this.tima == 0x100:
-          this.tima = this.tma
-          this.interrupt(kInterruptTimer)
-
-    this.div_cycles = this.div_cycles + cycles
-    while this.div_cycles >= 256:
-      this.div = (this.div + 1) & 0xFF
-      this.div_cycles = this.div_cycles - 256
-
-    if this.lcd_enabled():
-      this.ppu_cycles = this.ppu_cycles + cycles
-      switch this.ppu_mode:
-        case kModeOam:
-          if this.ppu_cycles >= 80:
-            this.ppu_cycles = this.ppu_cycles - 80
-            this.set_mode(kModeVram)
-        case kModeVram:
-          if this.ppu_cycles >= 172:
-            this.ppu_cycles = this.ppu_cycles - 172
-            this.set_mode(kModeHBlank)
-            this.scanline()
-        case kModeHBlank:
-          if this.ppu_cycles >= 204:
-            this.ppu_cycles = this.ppu_cycles - 204
-
-            this.increment_line()
-            if this.ly == kScreenH:
-              this.set_mode(kModeVBlank)
-              this.window.render()
-            else:
-              this.set_mode(kModeOam)
-        case kModeVBlank:
-          if this.ppu_cycles >= 456:
-            this.ppu_cycles = this.ppu_cycles - 456
-
-            this.increment_line()
-            if this.ly == kScreenH + 10:
-              this.ly = 0
-              this.set_mode(kModeOam)
-
-  def scanline():
-    if this.lcd_enabled():
-      this.transparent.clear()
-      this.transparent.resize(kScreenW, true)
-
-      if this.lcdc & 0x1:
-        this.draw_background()
-      if this.lcdc & 0x20:
-        this.draw_window()
-      if this.lcdc & 0x02:
-        this.draw_sprites()
-    else:
-      this.window.clear(kPalette[0])
-
-  def read_tile(base, tile, x, y):
-    var addr = 16 * tile + 2 * y + base
-    var lsbc = this.vram[addr + 0] >> (x ^ 0x7)
-    var msbc = this.vram[addr + 1] >> (x ^ 0x7)
-
-    return (lsbc & 0x1) | (msbc & 0x1) << 1
-
-  def draw_background():
-    var map_base = 0x1800
-    if this.lcdc & 0x08:
-      map_base = map_base + 0x0400
-
-    var tile_base = 0x1000
-    if this.lcdc & 0x10:
-      tile_base = tile_base - 0x1000
-
-    var y = this.ly
-    for x in 0 .. kScreenW:
-      var texel_x = (x + this.scx) & 0xFF
-      var texel_y = (y + this.scy) & 0xFF
-
-      var tile_x = texel_x >> 3
-      var tile_y = texel_y >> 3
-      var tile = this.vram[32 * tile_y + tile_x + map_base]
-
-      if (this.lcdc & 0x10) == 0:
-        tile = sign_extend(tile)
-
-      var pixel_x = texel_x & 0x7
-      var pixel_y = texel_y & 0x7
-
-      var index = this.read_tile(tile_base, tile, pixel_x, pixel_y)
-      this.window.set_pixel(x, y, color(this.bgp, index))
-      this.transparent[x] = index == 0
-
-  def draw_window():
-    var wx = this.wx - 7
-    if wx >= kScreenW:
-      return
-
-    var wy = this.wy
-    if wy >= kScreenH:
-      return
-
-    var y = this.ly - wy
-    if y < 0:
-      return
-
-    var map_base = 0x1800
-    if this.lcdc & 0x40:
-      map_base = map_base + 0x0400
-
-    var tile_base = 0x1000
-    if this.lcdc & 0x10:
-      tile_base = tile_base - 0x1000
-
-    for x in max(0, -wx) .. min(kScreenW, kScreenW - wx):
-      var tile_x = x >> 3
-      var tile_y = y >> 3
-      var tile = this.vram[32 * tile_y + tile_x + map_base]
-
-      if (this.lcdc & 0x10) == 0:
-        tile = sign_extend(tile)
-
-      var pixel_x = x & 0x7
-      var pixel_y = y & 0x7
-
-      var index = this.read_tile(tile_base, tile, pixel_x, pixel_y)
-      this.window.set_pixel(wx + x, this.ly, color(this.bgp, index))
-      this.transparent[wx + x] = index == 0
-
-  def draw_sprites():
-    var height = 8
-    if this.lcdc & 0x04:
-      height = 16
-
-    for entry in range(0x9C, -4, -4):
-      var sy   = this.oram[entry + 0] - 16
-      var sx   = this.oram[entry + 1] - 8
-      var tile = this.oram[entry + 2]
-      var data = this.oram[entry + 3]
-
-      var line = this.ly - sy
-      if line < 0 || line >= height:
-        continue
-
-      if sx <= -8 || sx >= kScreenW:
-        continue
-        
-      if data & 0x40:
-        line = line ^ (height - 1)
-
-      if this.lcdc & 0x04:
-        if line < 8:
-          tile = tile & 0xFE
+        increment_line()
+        if ly == kScreenH:
+          set_mode(kModeVBlank)
+          window.render()
         else:
-          tile = tile | 0x01
-          line = line - 8
+          set_mode(kModeOam)
+    case kModeVBlank:
+      if ppu_cycles >= 456:
+        ppu_cycles = ppu_cycles - 456
 
-      var palette = this.obp0
-      if data & 0x10:
-        palette = this.obp1
+        increment_line()
+        if ly == kScreenH + 10:
+          ly = 0
+          set_mode(kModeOam)
 
-      var flip_x = 0
-      if data & 0x20:
-        flip_x = 0x7
+def scanline():
+  if lcd_enabled():
+    transparent.clear()
+    transparent.resize(kScreenW, true)
 
-      var pixel_y = line
-      for pixel_x in max(0, -sx) .. min(8, kScreenW - sx):
-        var index = this.read_tile(0, tile, pixel_x ^ flip_x, pixel_y)
-        if index == 0:
-          continue
+    if lcdc & 0x1:
+      draw_background()
+    if lcdc & 0x20:
+      draw_window()
+    if lcdc & 0x02:
+      draw_sprites()
+  else:
+    window.clear(kPalette[0])
 
-        var x = sx + pixel_x
-        if (data & 0x80) == 0 || this.transparent[x]:
-          this.window.set_pixel(x, this.ly, color(palette, index))
+def read_tile(base, tile, x, y):
+  var addr = 16 * tile + 2 * y + base
+  var lsbc = vram[addr + 0] >> (x ^ 0x7)
+  var msbc = vram[addr + 1] >> (x ^ 0x7)
 
-  def boot(rom):
-    this.rom = rom
-    if rom.size() < 0x8000:
-      print("rom too small")
+  return (lsbc & 0x1) | (msbc & 0x1) << 1
+
+def draw_background():
+  var map_base = 0x1800
+  if lcdc & 0x08:
+    map_base = map_base + 0x0400
+
+  var tile_base = 0x1000
+  if lcdc & 0x10:
+    tile_base = tile_base - 0x1000
+
+  var y = ly
+  for x in 0 .. kScreenW:
+    var texel_x = (x + scx) & 0xFF
+    var texel_y = (y + scy) & 0xFF
+
+    var tile_x = texel_x >> 3
+    var tile_y = texel_y >> 3
+    var tile = vram[32 * tile_y + tile_x + map_base]
+
+    if (lcdc & 0x10) == 0:
+      tile = sign_extend(tile)
+
+    var pixel_x = texel_x & 0x7
+    var pixel_y = texel_y & 0x7
+
+    var index = read_tile(tile_base, tile, pixel_x, pixel_y)
+    window.set_pixel(x, y, color(bgp, index))
+    transparent[x] = index == 0
+
+def draw_window():
+  var wx_ = wx - 7
+  if wx_ >= kScreenW:
+    return
+
+  var wy_ = wy
+  if wy_ >= kScreenH:
+    return
+
+  var y = ly - wy_
+  if y < 0:
+    return
+
+  var map_base = 0x1800
+  if lcdc & 0x40:
+    map_base = map_base + 0x0400
+
+  var tile_base = 0x1000
+  if lcdc & 0x10:
+    tile_base = tile_base - 0x1000
+
+  for x in max(0, -wx_) .. min(kScreenW, kScreenW - wx_):
+    var tile_x = x >> 3
+    var tile_y = y >> 3
+    var tile = vram[32 * tile_y + tile_x + map_base]
+
+    if (lcdc & 0x10) == 0:
+      tile = sign_extend(tile)
+
+    var pixel_x = x & 0x7
+    var pixel_y = y & 0x7
+
+    var index = read_tile(tile_base, tile, pixel_x, pixel_y)
+    window.set_pixel(wx_ + x, ly, color(bgp, index))
+    transparent[wx_ + x] = index == 0
+
+def draw_sprites():
+  var height = 8
+  if lcdc & 0x04:
+    height = 16
+
+  for entry in range(0x9C, -4, -4):
+    var sy   = oram[entry + 0] - 16
+    var sx   = oram[entry + 1] - 8
+    var tile = oram[entry + 2]
+    var data = oram[entry + 3]
+
+    var line = ly - sy
+    if line < 0 || line >= height:
+      continue
+
+    if sx <= -8 || sx >= kScreenW:
+      continue
+
+    if lcdc & 0x04:
+      if line < 8:
+        tile = tile & 0xFE
+      else:
+        tile = tile | 0x01
+        line = line - 8
+
+    var palette = obp0
+    if data & 0x10:
+      palette = obp1
+
+    var flip_x = 0
+    if data & 0x20:
+      flip_x = 0x7
+
+    var flip_y = 0
+    if data & 0x40:
+      flip_y = 0x7
+
+    var pixel_y = line
+    for pixel_x in max(0, -sx) .. min(8, kScreenW - sx):
+      var index = read_tile(0, tile, pixel_x ^ flip_x, pixel_y ^ flip_y)
+      if index == 0:
+        continue
+
+      var x = sx + pixel_x
+      if (data & 0x80) == 0 || transparent[x]:
+        window.set_pixel(x, ly, color(palette, index))
+
+def boot():
+  if len(rom) < 0x8000:
+    print("rom too small")
+    return false
+
+  switch rom[0x147]:
+    case 0x00:
+    case 0x08:
+    case 0x09:
+      mbc = 0
+    case 0x01:
+    case 0x02:
+    case 0x03:
+      mbc = 1
+    case 0x0F:
+    case 0x10:
+    case 0x11:
+    case 0x12:
+    case 0x13:
+      mbc = 3
+    default:
+      print("unsupported cartridge type", rom[0x147])
       return false
 
-    switch this.rom[0x147]:
-      case 0x00:
-      case 0x08:
-      case 0x09:
-        this.mbc = 0
-      case 0x01:
-      case 0x02:
-      case 0x03:
-        this.mbc = 1
-      case 0x0F:
-      case 0x10:
-      case 0x11:
-      case 0x12:
-      case 0x13:
-        this.mbc = 3
-      default:
-        print("unsupported cartridge type", this.rom[0x147])
-        return false
+  switch rom[0x148]:
+    case 0x00:
+      rom_banks = 2
+    case 0x01:
+      rom_banks = 4
+    case 0x02:
+      rom_banks = 8
+    case 0x03:
+      rom_banks = 16
+    case 0x04:
+      rom_banks = 32
+    case 0x05:
+      rom_banks = 64
+    case 0x06:
+      rom_banks = 128
+    case 0x07:
+      rom_banks = 256
+    case 0x08:
+      rom_banks = 512
+    default:
+      print("unsupported rom size", rom[0x148])
+      return false
 
-    switch this.rom[0x148]:
+  if 0x4000 * rom_banks != len(rom):
+    print("expected rom size", 0x4000 * rom_banks, "but got", len(rom))
+    return false
+
+  switch rom[0x147]:
+    case 0x02:
+    case 0x03:
+    case 0x08:
+    case 0x09:
+    case 0x0C:
+    case 0x0D:
+    case 0x10:
+    case 0x12:
+    case 0x13:
+      ram_exists = 1
+
+  if ram_exists:
+    switch rom[0x149]:
       case 0x00:
-        this.rom_banks = 2
-      case 0x01:
-        this.rom_banks = 4
+        ram_banks = 0
       case 0x02:
-        this.rom_banks = 8
+        ram_banks = 1
       case 0x03:
-        this.rom_banks = 16
+        ram_banks = 4
       case 0x04:
-        this.rom_banks = 32
+        ram_banks = 16
       case 0x05:
-        this.rom_banks = 64
-      case 0x06:
-        this.rom_banks = 128
-      case 0x07:
-        this.rom_banks = 256
-      case 0x08:
-        this.rom_banks = 512
+        ram_banks =8
       default:
-        print("unsupported rom size", this.rom[0x148])
+        print("unsupported ram size", rom[0x149])
         return false
 
-    if 0x4000 * this.rom_banks != this.rom.size():
-      print("expected rom size", 0x4000 * this.rom_banks, "but got", this.rom.size())
-      return false
+    eram.resize(0x2000 * ram_banks, 0xFF)
 
-    switch rom[0x147]:
-      case 0x02:
-      case 0x03:
-      case 0x08:
-      case 0x09:
-      case 0x0C:
-      case 0x0D:
-      case 0x10:
-      case 0x12:
-      case 0x13:
-        this.ram_exists = 1
+  return true
 
-    if this.ram_exists:
-      switch this.rom[0x149]:
-        case 0x00:
-          this.ram_banks = 0
-        case 0x02:
-          this.ram_banks = 1
-        case 0x03:
-          this.ram_banks = 4
-        case 0x04:
-          this.ram_banks = 16
-        case 0x05:
-          this.ram_banks =8
-        default:
-          print("unsupported ram size", this.rom[0x149])
-          return false
+def frame():
+  while true:
+    cpu()
+    irq()
 
-      this.eram.resize(0x2000 * this.ram_banks, 0xFF)
+    if cycles >= 70224:
+      cycles = cycles - 70224
+      break
 
-    return true
+def run():
+  if !boot():
+    return 1
 
-  def frame():
-    while true:
-      this.cpu()
-      this.irq()
-
-      if this.cycles >= 70224:
-        this.cycles = this.cycles - 70224
-        break
-
-  def run(rom):
-    if !this.boot(rom):
-      return 1
-
-    while sdl_events():
-      this.frame()
+  while sdl_events():
+    frame()
 
 def main():
   var args = arguments()
-  if args.size() < 3:
+  if len(args) < 3:
     print("cannot run without rom")
     return
 
-  var rom = read_bin(args[2])
+  rom = read_bin(args[2])
   if rom == null:
     print("cannot read", args[2])
     return
 
-  GameBoy().run(rom)
+  run()
 
 main()
