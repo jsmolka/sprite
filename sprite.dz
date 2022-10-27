@@ -1381,7 +1381,7 @@ def draw_background():
     var pixel_y = texel_y & 0x7
 
     var index = read_tile(tile_base, tile, pixel_x, pixel_y)
-    window.set_pixel(x, y, color(bgp, index))
+    window.pixel(x, y, color(bgp, index))
     transparent[x] = index == 0
 
 def draw_window():
@@ -1417,7 +1417,7 @@ def draw_window():
     var pixel_y = y & 0x7
 
     var index = read_tile(tile_base, tile, pixel_x, pixel_y)
-    window.set_pixel(wx_ + x, ly, color(bgp, index))
+    window.pixel(wx_ + x, ly, color(bgp, index))
     transparent[wx_ + x] = index == 0
 
 def draw_sprites():
@@ -1465,7 +1465,7 @@ def draw_sprites():
 
       var x = sx + pixel_x
       if (data & 0x80) == 0 || transparent[x]:
-        window.set_pixel(x, ly, color(palette, index))
+        window.pixel(x, ly, color(palette, index))
 
 def boot():
   if len(rom) < 0x8000:
@@ -1564,7 +1564,11 @@ def run():
     return 1
 
   while sdl_events():
+    var begin = time()
     frame()
+    var wait = 16 - time() + begin
+    if wait > 0:
+      sleep(wait)
 
 def main():
   var args = arguments()
