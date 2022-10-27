@@ -1541,7 +1541,7 @@ def boot():
       case 0x04:
         ram_banks = 16
       case 0x05:
-        ram_banks =8
+        ram_banks = 8
       default:
         print("unsupported ram size", rom[0x149])
         return false
