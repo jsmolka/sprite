@@ -13,4 +13,4 @@ Binaries for Windows, Linux and macOS are available as [nightly](https://nightly
 ## Build
 Detailed build instructions can be found [here](BUILD.md).
 
-![screenshot](screenshot.png)
+![](docs/screenshots/technology.png)

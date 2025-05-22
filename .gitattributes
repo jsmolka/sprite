@@ -5,3 +5,6 @@
 *.h   text diff=cpp    linguist-language=cpp
 *.cpp text diff=cpp    linguist-language=cpp
 *.dz  text diff=python linguist-language=python
+
+# Linguist
+docs/**/* linguist-vendored
